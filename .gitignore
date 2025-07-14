@@ -1,0 +1,12 @@
+*.pyc
+.vscode
+__pycache__
+.idea/
+/.env
+/.venv
+/.ve
+.devcontainer
+workspace*
+.DS_Store
+.DS_Store?
+.coverage
