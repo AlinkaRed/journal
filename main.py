@@ -10,6 +10,9 @@ from sqlmodel import select
 from db import (
     Course,
     Faculty,
+    Group,
+    Student,
+    Teacher,
     SessionDep,
 )
 
@@ -160,6 +163,211 @@ def delete_course(course_id: int, session: SessionDep):
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
     session.delete(course)
+    session.commit()
+    return {"ok": True}
+
+# --------------------------------Groups---------------------------------------------
+
+@app.get("/groups/", response_class=HTMLResponse)
+def groups(request: Request):
+    return templates.TemplateResponse(
+        request=request, name="groups.html", context={},
+    )
+
+
+@router.post("/group/", response_model=Group)
+def create_group(group: Group, session: SessionDep):
+    session.add(group)
+    session.commit()
+    session.refresh(group)
+    return group
+
+
+class GroupItem(BaseModel):
+    id: int
+    num: int
+    course: Course
+
+
+class GroupsDT(BaseModel):
+    data: list[GroupItem]
+
+
+@router.get("/groups/", response_model=GroupsDT)
+def get_groups(
+    session: SessionDep,
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+):
+    groups = session.scalars(select(Group).join(Course).offset(offset).limit(limit))
+    return {'data': groups}
+
+
+@router.get("/groups/{group_id}", response_model=Group)
+def get_group(group_id: int, session: SessionDep):
+    group = session.get(Group, group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return group
+
+
+@router.patch("/groups/{group_id}", response_model=Group)
+def update_group(group_id: int, group: Group, session: SessionDep):
+    group_db = session.get(Group, group_id)
+    if not group_db:
+        raise HTTPException(status_code=404, detail="Group not found")
+    group_data = group.model_dump(exclude_unset=True)
+    group_db.sqlmodel_update(group_data)
+    session.add(group_db)
+    session.commit()
+    session.refresh(group_db)
+    return group_db
+
+
+@router.delete("/groups/{group_id}")
+def delete_group(group_id: int, session: SessionDep):
+    group = session.get(Group, group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    session.delete(group)
+    session.commit()
+    return {"ok": True}
+
+# --------------------------------Students---------------------------------------------
+
+@app.get("/students/", response_class=HTMLResponse)
+def students(request: Request):
+    return templates.TemplateResponse(
+        request=request, name="students.html", context={},
+    )
+
+
+@router.post("/student/", response_model=Student)
+def create_student(student: Student, session: SessionDep):
+    session.add(student)
+    session.commit()
+    session.refresh(student)
+    return student
+
+
+class StudentItem(BaseModel):
+    id: int
+    first_name: str
+    middle_name: str | None
+    last_name: str
+    group: Group
+
+
+class StudentDT(BaseModel):
+    data: list[StudentItem]
+
+
+@router.get("/students/", response_model=StudentDT)
+def get_students(
+    session: SessionDep,
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+):
+    students = session.scalars(select(Student).join(Group).offset(offset).limit(limit))
+    return {'data': students}
+
+
+@router.get("/students/{student_id}", response_model=Student)
+def get_student(student_id: int, session: SessionDep):
+    student = session.get(Student, student_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return student
+
+
+@router.patch("/students/{student_id}", response_model=Student)
+def update_student(student_id: int, student: Student, session: SessionDep):
+    student_db = session.get(Student, student_id)
+    if not student_db:
+        raise HTTPException(status_code=404, detail="Student not found")
+    student_data = student.model_dump(exclude_unset=True)
+    student_db.sqlmodel_update(student_data)
+    session.add(student_db)
+    session.commit()
+    session.refresh(student_db)
+    return student_db
+
+
+@router.delete("/students/{student_id}")
+def delete_student(student_id: int, session: SessionDep):
+    student = session.get(Student, student_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    session.delete(student)
+    session.commit()
+    return {"ok": True}
+
+
+# --------------------------------Teachers---------------------------------------------
+
+@app.get("/teachers/", response_class=HTMLResponse)
+def teachers(request: Request):
+    return templates.TemplateResponse(
+        request=request, name="teachers.html", context={},
+    )
+
+
+@router.post("/teacher/", response_model=Teacher)
+def create_teacher(teacher: Teacher, session: SessionDep):
+    session.add(teacher)
+    session.commit()
+    session.refresh(teacher)
+    return teacher
+
+
+class teacherItem(BaseModel):
+    id: int
+    first_name: str
+    middle_name: str | None
+    last_name: str
+
+
+class teacherDT(BaseModel):
+    data: list[teacherItem]
+
+
+@router.get("/teachers/", response_model=teacherDT)
+def get_teachers(
+    session: SessionDep,
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+):
+    teachers = session.scalars(select(Teacher).offset(offset).limit(limit))
+    return {'data': teachers}
+
+
+@router.get("/teachers/{teacher_id}", response_model=Teacher)
+def get_teacher(teacher_id: int, session: SessionDep):
+    teacher = session.get(Teacher, teacher_id)
+    if not teacher:
+        raise HTTPException(status_code=404, detail="teacher not found")
+    return teacher
+
+
+@router.patch("/teachers/{teacher_id}", response_model=Teacher)
+def update_teacher(teacher_id: int, teacher: Teacher, session: SessionDep):
+    teacher_db = session.get(teacher, teacher_id)
+    if not teacher_db:
+        raise HTTPException(status_code=404, detail="teacher not found")
+    teacher_data = teacher.model_dump(exclude_unset=True)
+    teacher_db.sqlmodel_update(teacher_data)
+    session.add(teacher_db)
+    session.commit()
+    session.refresh(teacher_db)
+    return teacher_db
+
+
+@router.delete("/teachers/{teacher_id}")
+def delete_teacher(teacher_id: int, session: SessionDep):
+    teacher = session.get(Teacher, teacher_id)
+    if not teacher:
+        raise HTTPException(status_code=404, detail="teacher not found")
+    session.delete(teacher)
     session.commit()
     return {"ok": True}
 
