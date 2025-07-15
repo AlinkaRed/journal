@@ -79,3 +79,16 @@ class Student(SQLModel, table=True):
 
     def __repr__(self) -> str:
         return f"Student(id={self.id!r}, first_name={self.first_name!r}, middle_name={self.middle_name!r}, last_name={self.last_name!r}, group={self.groups.num!r})"
+
+
+class Teacher(SQLModel, table=True):
+    __tablename__ = "teacher"
+
+    id: int | None = Field(default=None, primary_key=True)
+    first_name: str = Field()
+    middle_name: str | None = Field(default=None)
+    last_name: str = Field()
+
+    def __repr__(self) -> str:
+        return f"Teacher(id={self.id!r}, first_name={self.first_name!r}, middle_name={self.middle_name!r}, last_name={self.last_name!r}"
+
