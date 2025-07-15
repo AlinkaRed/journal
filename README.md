@@ -1,3 +1,8 @@
 # Journal.
-
-## Chapter 1
+## Its a project JO.
+It contains pages: 
+- faculties, 
+- courses, 
+- groups, 
+- students, 
+- teachers.
