@@ -136,7 +136,7 @@ class TestFaculties(BaseTest):
         self.assertResponse200(response)
 
     def test_get_faculty(self) -> None:
-        response = self.client.get('/api/faculties/1/')
+        response = self.client.get(f'/api/faculties/{self.fa_1.id}/')
         self.assertJsonResponseOK(response)
         self.assertEqual(response.status_code, 200)
 
@@ -165,3 +165,33 @@ class TestFaculties(BaseTest):
         self.assertEqual(faculty_data[2]['name'], self.fa_3.name)
         self.assertEqual(faculty_data[2]['num'], self.fa_3.num)
         self.assertTrue(isinstance(faculty_data[2].get('id'), int))
+
+    def test_delete_faculty(self) -> None:
+        response = self.client.delete(f'/api/faculties/{self.fa_1.id}/')
+        self.assertJsonResponseOK(response)
+        self.assertEqual(response.status_code, 200)
+        response = self.client.get('/api/faculties/')
+        json = response.json()
+        self.assertIn('data', json)
+        self.assertTrue(isinstance(json['data'], list))
+
+        faculty_data = json['data']
+        self.assertEqual(len(faculty_data), 2)
+
+    def test_update_faculty(self) -> None:
+        with self.session as session:
+            self.fa_4 = Faculty(name='DDD', num=4)
+            session.add(self.fa_4)
+            session.commit()
+            session.refresh(self.fa_4)
+
+        response = self.client.get('/api/faculties/')
+        self.assertJsonResponseOK(response)
+        self.assertEqual(response.status_code, 200)
+
+        json = response.json()
+        self.assertIn('data', json)
+        self.assertTrue(isinstance(json['data'], list))
+
+        faculty_data = json['data']
+        self.assertEqual(len(faculty_data), 4)
