@@ -1,11 +1,12 @@
 from typing import Annotated
-
+import random
 from fastapi import FastAPI, HTTPException, Query, Request, APIRouter
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sqlmodel import select
+from sqlalchemy import func
 
 from db import (
     Course,
@@ -99,6 +100,16 @@ def delete_faculty(faculty_id: int, session: SessionDep):
     return {"ok": True}
 
 
+@router.get("/faculties/random/", response_model=Faculty)
+def get_faculty_random(session: SessionDep):
+    f = session.scalars(select(Faculty)).all()
+
+    if not f:
+        raise HTTPException(status_code=404, detail="No faculties found")
+
+    random_faculty = random.choice(f)
+    return random_faculty
+
 # --------------------------------Courses---------------------------------------------
 
 @app.get("/courses/", response_class=HTMLResponse)
@@ -136,7 +147,7 @@ def get_courses(
     return {'data': courses}
 
 
-@router.get("/courses/{course_id}", response_model=Course)
+@router.get("/courses/{course_id}/", response_model=Course)
 def get_course(course_id: int, session: SessionDep):
     course = session.get(Course, course_id)
     if not course:
@@ -144,7 +155,7 @@ def get_course(course_id: int, session: SessionDep):
     return course
 
 
-@router.patch("/courses/{course_id}", response_model=Course)
+@router.patch("/courses/{course_id}/", response_model=Course)
 def update_course(course_id: int, course: Course, session: SessionDep):
     course_db = session.get(Course, course_id)
     if not course_db:
@@ -157,7 +168,7 @@ def update_course(course_id: int, course: Course, session: SessionDep):
     return course_db
 
 
-@router.delete("/courses/{course_id}")
+@router.delete("/courses/{course_id}/")
 def delete_course(course_id: int, session: SessionDep):
     course = session.get(Course, course_id)
     if not course:
@@ -303,6 +314,29 @@ def delete_student(student_id: int, session: SessionDep):
     return {"ok": True}
 
 
+@router.get("/students/random/", response_model=Student)
+def get_random_student(session: SessionDep,
+                       faculty_id: int = None,
+                       course_id: int = None,
+                       group_id: int = None):
+    query = select(Student).join(Group).join(Course).join(Faculty)
+
+    if faculty_id is not None:
+        query = query.where(Faculty.id == faculty_id)
+    if course_id is not None:
+        query = query.where(Course.id == course_id)
+    if group_id is not None:
+        query = query.where(Group.id == group_id)
+
+    s = session.scalars(query).all()
+
+    if not s:
+        raise HTTPException(status_code=404, detail="No students found")
+
+    random_student = random.choice(s)
+    return random_student
+
+
 # --------------------------------Teachers---------------------------------------------
 
 @app.get("/teachers/", response_class=HTMLResponse)
@@ -351,9 +385,9 @@ def get_teacher(teacher_id: int, session: SessionDep):
 
 @router.patch("/teachers/{teacher_id}", response_model=Teacher)
 def update_teacher(teacher_id: int, teacher: Teacher, session: SessionDep):
-    teacher_db = session.get(teacher, teacher_id)
+    teacher_db = session.get(Teacher, teacher_id)
     if not teacher_db:
-        raise HTTPException(status_code=404, detail="teacher not found")
+        raise HTTPException(status_code=404, detail="Teacher not found")
     teacher_data = teacher.model_dump(exclude_unset=True)
     teacher_db.sqlmodel_update(teacher_data)
     session.add(teacher_db)
