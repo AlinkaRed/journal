@@ -6,10 +6,10 @@ from sqlmodel import Field, Session, SQLModel, Relationship, create_engine, sele
 
 
 DB_HOST = 'localhost'
-DB_PORT = 5437
-DB_NAME = 'storefront'
-DB_USER = 'storefront'
-DB_PASSWORD = 'storefront'
+DB_PORT = 5432
+DB_NAME = 'students'
+DB_USER = 'postgres'
+DB_PASSWORD = 'root'
 
 engine = create_engine(f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
 
