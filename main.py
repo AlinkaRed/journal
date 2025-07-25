@@ -69,6 +69,16 @@ def get_faculties(
     return {'data': faculties}
 
 
+@app.get("/faculty/{faculty_id}/", response_class=HTMLResponse)
+def faculty_details(request: Request, faculty_id: int, session: SessionDep):
+    faculty = session.get(Faculty, faculty_id)
+    if not faculty:
+        raise HTTPException(status_code=404, detail="Faculty not found")
+    return templates.TemplateResponse(
+        request=request, name="faculty_details.html", context={'faculty': faculty}
+    )
+
+
 @router.get("/faculties/{faculty_id}", response_model=Faculty)
 def get_faculty(faculty_id: int, session: SessionDep):
     faculty = session.get(Faculty, faculty_id)
