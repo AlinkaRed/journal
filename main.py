@@ -1,10 +1,10 @@
-from typing import Annotated, Optional
+from typing import Annotated
 import random
 from fastapi import FastAPI, HTTPException, Query, Request, APIRouter
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 from sqlmodel import select
 
 
@@ -54,16 +54,8 @@ def create_faculty(request: Request, faculty: Faculty, session: SessionDep):
     return faculty
 
 
-class FacultyResponse(Faculty):
-    url: Optional[str]
-
-    @validator('url', pre=True, always=True)
-    def make_url(cls, v: str, values: dict) -> str:
-        return app.url_path_for("faculty_details", faculty_id=values['id'])
-
-
 class FacultiesDT(BaseModel):
-    data: list[FacultyResponse]
+    data: list[Faculty]
 
 
 @router.get("/faculties/", response_model=FacultiesDT)
@@ -126,6 +118,7 @@ def get_faculty_random(session: SessionDep):
 
     random_faculty = random.choice(f)
     return random_faculty
+
 
 # --------------------------------Courses---------------------------------------------
 
