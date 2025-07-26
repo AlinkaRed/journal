@@ -147,6 +147,16 @@ class CoursesDT(BaseModel):
     data: list[CourseItem]
 
 
+@app.get("/course/{course_id}/", response_class=HTMLResponse)
+def course_details(request: Request, course_id: int, session: SessionDep):
+    course = session.get(Course, course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    return templates.TemplateResponse(
+        request=request, name="course_details.html", context={'course': course}
+    )
+
+
 @router.get("/courses/", response_model=CoursesDT)
 def get_courses(
     session: SessionDep,
@@ -212,6 +222,16 @@ class GroupItem(BaseModel):
 
 class GroupsDT(BaseModel):
     data: list[GroupItem]
+
+
+@app.get("/group/{group_id}/", response_class=HTMLResponse)
+def group_details(request: Request, group_id: int, session: SessionDep):
+    group = session.get(Group, group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return templates.TemplateResponse(
+        request=request, name="group_details.html", context={'group': group}
+    )
 
 
 @router.get("/groups/", response_model=GroupsDT)
@@ -281,6 +301,17 @@ class StudentItem(BaseModel):
 
 class StudentDT(BaseModel):
     data: list[StudentItem]
+
+
+@app.get("/student/{student_id}/", response_class=HTMLResponse)
+def student_details(request: Request, student_id: int, session: SessionDep):
+    student = session.get(Student, student_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return templates.TemplateResponse(
+        request=request, name="student_details.html", context={'student': student}
+    )
+
 
 
 @router.get("/students/", response_model=StudentDT)
@@ -373,6 +404,16 @@ class teacherItem(BaseModel):
 
 class teacherDT(BaseModel):
     data: list[teacherItem]
+
+
+@app.get("/teacher/{teacher_id}/", response_class=HTMLResponse)
+def teacher_details(request: Request, teacher_id: int, session: SessionDep):
+    teacher = session.get(Teacher, teacher_id)
+    if not teacher:
+        raise HTTPException(status_code=404, detail="Teacher not found")
+    return templates.TemplateResponse(
+        request=request, name="teacher_details.html", context={'teacher': teacher}
+    )
 
 
 @router.get("/teachers/", response_model=teacherDT)

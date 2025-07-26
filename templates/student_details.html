@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block header %}
+<h1 class="mt-4">Студент {{ student.first_name + ' ' + student.middle_name + ' ' + student.last_name }}</h1>
+{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item active">Студенты</li>
+    <li class="breadcrumb-item active">{{ student.first_name + ' ' + student.middle_name + ' ' + student.last_name }}</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-5">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-body">
+                    <table class="datatable-table stripe">
+                        <tr>
+                            <th>ID</th>
+                            <td>{{ student.id }}</td>
+                        </tr>
+                        <tr>
+                            <th>Имя</th>
+                            <td>{{ student.first_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Отчество</th>
+                            <td>{{ student.middle_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Фамилия</th>
+                            <td>{{ student.last_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Номер группы</th>
+                            <td>{{ student.group.num }}</td>
+                        </tr>
+                        <tr>
+                            <th>Номер курса</th>
+                            <td>{{ student.group.course.num }}</td>
+                        </tr>
+                        <tr>
+                            <th>Название факультета</th>
+                            <td>{{ student.group.course.faculty.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Номер факультета</th>
+                            <td>{{ student.group.course.faculty.num }}</td>
+                        </tr>
+                    </table>
+                    <div class="d-flex align-items-center justify-content-between mt-4 mb-0">
+                        <a class="btn btn-primary" href="{{ url_for('faculties') }}">OK</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
