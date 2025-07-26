@@ -10,7 +10,12 @@
                 processing: true,
                 serverSide: true,
                 columns: [
-                    { data: 'id', width: 100 },
+                    { data: 'id',
+                      width: 100,
+                      render: function ( data, type, row) {
+                        return '<a href="' + row.url + '">' + data + '</a>';
+                      }
+                    },
                     { data: 'name', className: 'dt-body-right' },
                     { data: 'num' },
                 ],

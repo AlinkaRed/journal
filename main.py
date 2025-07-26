@@ -1,12 +1,12 @@
-from typing import Annotated
+from typing import Annotated, Optional
 import random
 from fastapi import FastAPI, HTTPException, Query, Request, APIRouter
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from sqlmodel import select
-from sqlalchemy import func
+
 
 from db import (
     Course,
@@ -54,8 +54,16 @@ def create_faculty(request: Request, faculty: Faculty, session: SessionDep):
     return faculty
 
 
+class FacultyResponse(Faculty):
+    url: Optional[str]
+
+    @validator('url', pre=True, always=True)
+    def make_url(cls, v: str, values: dict) -> str:
+        return app.url_path_for("faculty_details", faculty_id=values['id'])
+
+
 class FacultiesDT(BaseModel):
-    data: list[Faculty]
+    data: list[FacultyResponse]
 
 
 @router.get("/faculties/", response_model=FacultiesDT)
@@ -63,7 +71,6 @@ def get_faculties(
     session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
-
 ):
     faculties = session.scalars(select(Faculty).offset(offset).limit(limit)).all()
     return {'data': faculties}
