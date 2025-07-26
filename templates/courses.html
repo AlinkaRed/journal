@@ -10,7 +10,12 @@
 <!--                processing: true,-->
 <!--                serverSide: true,-->
                 columns: [
-                    { data: 'id', width: 100 },
+                    { data: 'id',
+                    width: 100,
+                    render: function ( data, type, row) {
+                        return '<a href="/course/' + data + '">' + data + '</a>';
+                      }
+                    },
                     { data: 'num' },
                     { data: 'faculty.name', className: 'dt-body-right' },
                 ],
