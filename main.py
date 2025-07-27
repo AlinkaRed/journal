@@ -1,11 +1,12 @@
 from typing import Annotated
-
+import random
 from fastapi import FastAPI, HTTPException, Query, Request, APIRouter
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sqlmodel import select
+
 
 from db import (
     Course,
@@ -62,10 +63,19 @@ def get_faculties(
     session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
-
 ):
     faculties = session.scalars(select(Faculty).offset(offset).limit(limit)).all()
     return {'data': faculties}
+
+
+@app.get("/faculty/{faculty_id}/", response_class=HTMLResponse)
+def faculty_details(request: Request, faculty_id: int, session: SessionDep):
+    faculty = session.get(Faculty, faculty_id)
+    if not faculty:
+        raise HTTPException(status_code=404, detail="Faculty not found")
+    return templates.TemplateResponse(
+        request=request, name="faculty_details.html", context={'faculty': faculty}
+    )
 
 
 @router.get("/faculties/{faculty_id}", response_model=Faculty)
@@ -99,6 +109,17 @@ def delete_faculty(faculty_id: int, session: SessionDep):
     return {"ok": True}
 
 
+@router.get("/faculties/random/", response_model=Faculty)
+def get_faculty_random(session: SessionDep):
+    f = session.scalars(select(Faculty)).all()
+
+    if not f:
+        raise HTTPException(status_code=404, detail="No faculties found")
+
+    random_faculty = random.choice(f)
+    return random_faculty
+
+
 # --------------------------------Courses---------------------------------------------
 
 @app.get("/courses/", response_class=HTMLResponse)
@@ -126,6 +147,16 @@ class CoursesDT(BaseModel):
     data: list[CourseItem]
 
 
+@app.get("/course/{course_id}/", response_class=HTMLResponse)
+def course_details(request: Request, course_id: int, session: SessionDep):
+    course = session.get(Course, course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    return templates.TemplateResponse(
+        request=request, name="course_details.html", context={'course': course}
+    )
+
+
 @router.get("/courses/", response_model=CoursesDT)
 def get_courses(
     session: SessionDep,
@@ -136,7 +167,7 @@ def get_courses(
     return {'data': courses}
 
 
-@router.get("/courses/{course_id}", response_model=Course)
+@router.get("/courses/{course_id}/", response_model=Course)
 def get_course(course_id: int, session: SessionDep):
     course = session.get(Course, course_id)
     if not course:
@@ -144,7 +175,7 @@ def get_course(course_id: int, session: SessionDep):
     return course
 
 
-@router.patch("/courses/{course_id}", response_model=Course)
+@router.patch("/courses/{course_id}/", response_model=Course)
 def update_course(course_id: int, course: Course, session: SessionDep):
     course_db = session.get(Course, course_id)
     if not course_db:
@@ -157,7 +188,7 @@ def update_course(course_id: int, course: Course, session: SessionDep):
     return course_db
 
 
-@router.delete("/courses/{course_id}")
+@router.delete("/courses/{course_id}/")
 def delete_course(course_id: int, session: SessionDep):
     course = session.get(Course, course_id)
     if not course:
@@ -191,6 +222,16 @@ class GroupItem(BaseModel):
 
 class GroupsDT(BaseModel):
     data: list[GroupItem]
+
+
+@app.get("/group/{group_id}/", response_class=HTMLResponse)
+def group_details(request: Request, group_id: int, session: SessionDep):
+    group = session.get(Group, group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return templates.TemplateResponse(
+        request=request, name="group_details.html", context={'group': group}
+    )
 
 
 @router.get("/groups/", response_model=GroupsDT)
@@ -262,6 +303,17 @@ class StudentDT(BaseModel):
     data: list[StudentItem]
 
 
+@app.get("/student/{student_id}/", response_class=HTMLResponse)
+def student_details(request: Request, student_id: int, session: SessionDep):
+    student = session.get(Student, student_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return templates.TemplateResponse(
+        request=request, name="student_details.html", context={'student': student}
+    )
+
+
+
 @router.get("/students/", response_model=StudentDT)
 def get_students(
     session: SessionDep,
@@ -303,6 +355,29 @@ def delete_student(student_id: int, session: SessionDep):
     return {"ok": True}
 
 
+@router.get("/students/random/", response_model=Student)
+def get_random_student(session: SessionDep,
+                       faculty_id: int = None,
+                       course_id: int = None,
+                       group_id: int = None):
+    query = select(Student).join(Group).join(Course).join(Faculty)
+
+    if faculty_id is not None:
+        query = query.where(Faculty.id == faculty_id)
+    if course_id is not None:
+        query = query.where(Course.id == course_id)
+    if group_id is not None:
+        query = query.where(Group.id == group_id)
+
+    s = session.scalars(query).all()
+
+    if not s:
+        raise HTTPException(status_code=404, detail="No students found")
+
+    random_student = random.choice(s)
+    return random_student
+
+
 # --------------------------------Teachers---------------------------------------------
 
 @app.get("/teachers/", response_class=HTMLResponse)
@@ -331,6 +406,16 @@ class teacherDT(BaseModel):
     data: list[teacherItem]
 
 
+@app.get("/teacher/{teacher_id}/", response_class=HTMLResponse)
+def teacher_details(request: Request, teacher_id: int, session: SessionDep):
+    teacher = session.get(Teacher, teacher_id)
+    if not teacher:
+        raise HTTPException(status_code=404, detail="Teacher not found")
+    return templates.TemplateResponse(
+        request=request, name="teacher_details.html", context={'teacher': teacher}
+    )
+
+
 @router.get("/teachers/", response_model=teacherDT)
 def get_teachers(
     session: SessionDep,
@@ -351,9 +436,9 @@ def get_teacher(teacher_id: int, session: SessionDep):
 
 @router.patch("/teachers/{teacher_id}", response_model=Teacher)
 def update_teacher(teacher_id: int, teacher: Teacher, session: SessionDep):
-    teacher_db = session.get(teacher, teacher_id)
+    teacher_db = session.get(Teacher, teacher_id)
     if not teacher_db:
-        raise HTTPException(status_code=404, detail="teacher not found")
+        raise HTTPException(status_code=404, detail="Teacher not found")
     teacher_data = teacher.model_dump(exclude_unset=True)
     teacher_db.sqlmodel_update(teacher_data)
     session.add(teacher_db)

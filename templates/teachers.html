@@ -10,7 +10,11 @@
 <!--                processing: true,-->
 <!--                serverSide: true,-->
                 columns: [
-                    { data: 'id', width: 100 },
+                    { data: 'id', width: 100,
+                    render: function ( data, type, row) {
+                        return '<a href="/teacher/' + data + '">' + data + '</a>';
+                      }
+                    },
                     { data: 'first_name' },
                     { data: 'middle_name' },
                     { data: 'last_name' },
