@@ -32,8 +32,10 @@
                             <td>{{ faculty.num }}</td>
                         </tr>
                     </table>
-                    <div class="d-flex align-items-center justify-content-between mt-4 mb-0">
-                        <a class="btn btn-primary" href="{{ url_for('faculties') }}">OK</a>
+                    <div class="row">
+                        <div class="col-md-4"><a class="btn btn-primary" href="{{ url_for('faculty_edit', faculty_id=faculty.id) }}">Редактировать</a></div>
+                        <div class="col-md-4"><a class="btn btn-secondary" href="{{ url_for('faculties') }}">Отменить</a></div>
+<!--                        <div class="col-md-4"><button class="btn btn-secondary" type="button" onclick="history.back()">Отменить</button></div>-->
                     </div>
                 </div>
             </div>

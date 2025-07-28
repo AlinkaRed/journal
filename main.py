@@ -7,15 +7,15 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sqlmodel import select
 
-
-from db import (
+from db.base import SessionDep
+from db.models import (
     Course,
     Faculty,
     Group,
     Student,
     Teacher,
-    SessionDep,
 )
+from faculties import faculties_router, faculties_api_router
 
 
 app = FastAPI()
@@ -25,99 +25,13 @@ templates = Jinja2Templates(directory="templates")
 router = APIRouter()
 
 
-# @app.get("/")
-# def root(response_class=HTMLResponse):
-#     return FileResponse("templates/index.html")
-
+# --------------------------------Base---------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request):
     return templates.TemplateResponse(
         request=request, name="index.html", context={}
     )
-
-
-# --------------------------------Faculties---------------------------------------------
-
-@app.get("/faculties/", response_class=HTMLResponse)
-def faculties(request: Request):
-    return templates.TemplateResponse(
-        request=request, name="faculties.html", context={}
-    )
-
-
-@router.post("/faculty/", response_model=Faculty)
-def create_faculty(request: Request, faculty: Faculty, session: SessionDep):
-    session.add(faculty)
-    session.commit()
-    session.refresh(faculty)
-    return faculty
-
-
-class FacultiesDT(BaseModel):
-    data: list[Faculty]
-
-
-@router.get("/faculties/", response_model=FacultiesDT)
-def get_faculties(
-    session: SessionDep,
-    offset: int = 0,
-    limit: Annotated[int, Query(le=100)] = 100,
-):
-    faculties = session.scalars(select(Faculty).offset(offset).limit(limit)).all()
-    return {'data': faculties}
-
-
-@app.get("/faculty/{faculty_id}/", response_class=HTMLResponse)
-def faculty_details(request: Request, faculty_id: int, session: SessionDep):
-    faculty = session.get(Faculty, faculty_id)
-    if not faculty:
-        raise HTTPException(status_code=404, detail="Faculty not found")
-    return templates.TemplateResponse(
-        request=request, name="faculty_details.html", context={'faculty': faculty}
-    )
-
-
-@router.get("/faculties/{faculty_id}", response_model=Faculty)
-def get_faculty(faculty_id: int, session: SessionDep):
-    faculty = session.get(Faculty, faculty_id)
-    if not faculty:
-        raise HTTPException(status_code=404, detail="Faculty not found")
-    return faculty
-
-
-@router.patch("/faculties/{faculty_id}", response_model=Faculty)
-def update_faculty(faculty_id: int, faculty: Faculty, session: SessionDep):
-    faculty_db = session.get(Faculty, faculty_id)
-    if not faculty_db:
-        raise HTTPException(status_code=404, detail="Faculty not found")
-    faculty_data = faculty.model_dump(exclude_unset=True)
-    faculty_db.sqlmodel_update(faculty_data)
-    session.add(faculty_db)
-    session.commit()
-    session.refresh(faculty_db)
-    return faculty_db
-
-
-@router.delete("/faculties/{faculty_id}")
-def delete_faculty(faculty_id: int, session: SessionDep):
-    faculty = session.get(Faculty, faculty_id)
-    if not faculty:
-        raise HTTPException(status_code=404, detail="Faculty not found")
-    session.delete(faculty)
-    session.commit()
-    return {"ok": True}
-
-
-@router.get("/faculties/random/", response_model=Faculty)
-def get_faculty_random(session: SessionDep):
-    f = session.scalars(select(Faculty)).all()
-
-    if not f:
-        raise HTTPException(status_code=404, detail="No faculties found")
-
-    random_faculty = random.choice(f)
-    return random_faculty
 
 
 # --------------------------------Courses---------------------------------------------
@@ -458,3 +372,5 @@ def delete_teacher(teacher_id: int, session: SessionDep):
 
 
 app.include_router(router, prefix="/api")
+app.include_router(faculties_router)
+app.include_router(faculties_api_router)
