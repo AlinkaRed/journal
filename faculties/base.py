@@ -66,3 +66,33 @@ def faculty_update(request: Request, faculty_id: int, session: SessionDep, facul
     return templates.TemplateResponse(
         request=request, name="faculties/faculty_details.html", context={'faculty': faculty_db}
     )
+
+
+class FacultyCreate(SQLModel):
+    name: str
+    num: int
+
+
+@faculties_router.get("/create/", response_class=HTMLResponse)
+def faculty_add(request: Request, session: SessionDep):
+    return templates.TemplateResponse(
+        request=request, name="faculties/faculty_create.html"
+    )
+
+
+@faculties_router.post("/create/", response_class=HTMLResponse)
+def faculty_create(
+    request: Request,
+    session: SessionDep,
+    name: Annotated[str, Form()],
+    num: Annotated[int, Form()]
+):
+    faculty = Faculty(name=name, num=num)
+    session.add(faculty)
+    session.commit()
+    session.refresh(faculty)
+    return templates.TemplateResponse(
+        request=request,
+        name="faculties/faculty_details.html",
+        context={'faculty': faculty}
+    )

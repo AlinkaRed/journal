@@ -5,20 +5,18 @@
     <script>
         $(document).ready(function() {
             $('#mainTable').DataTable({
-                ajax: '/api/students/',
+                ajax: '/api/groups/',
                 dataSrc: '',
 <!--                processing: true,-->
 <!--                serverSide: true,-->
                 columns: [
                     { data: 'id', width: 100,
                     render: function ( data, type, row) {
-                        return '<a href="/student/' + data + '">' + data + '</a>';
+                        return '<a href="/groups/' + data + '/details/">' + data + '</a>';
                       }
                     },
-                    { data: 'first_name' },
-                    { data: 'middle_name' },
-                    { data: 'last_name' },
-                    { data: 'group.num', className: 'dt-body-right' },
+                    { data: 'num' },
+                    { data: 'course.num', className: 'dt-body-right' },
                 ],
                 language: {
                     info: 'Страница _PAGE_ из _PAGES_',
@@ -34,40 +32,40 @@
 {% endblock %}
 
 {% block header %}
-<h1 class="mt-4">Студенты</h1>
+<h1 class="mt-4">Группы</h1>
 {% endblock %}
 
 {% block breadcrumbs %}
 <ol class="breadcrumb mb-4">
-    <li class="breadcrumb-item active">Студенты</li>
+    <li class="breadcrumb-item active">Группы</li>
 </ol>
 {% endblock %}
 
 {% block content %}
 
 <div class="card mb-4">
-<!--    <div class="card-header">-->
-<!--        <i class="fas fa-table me-1"></i>-->
-<!--        DataTable Example-->
-<!--    </div>-->
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div></div>
+            <a href="/groups/create/" class="btn btn-primary">
+                Добавить
+            </a>
+        </div>
+    </div>
     <div class="card-body">
         <table id="mainTable" class="datatable-table stripe">
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Имя</th>
-                    <th>Отчество</th>
-                    <th>Фамилия</th>
-                    <th>Группа</th>
+                    <th>Номер</th>
+                    <th>Курс</th>
                 </tr>
             </thead>
             <tfoot>
                 <tr>
                     <th>ID</th>
-                    <th>Имя</th>
-                    <th>Отчество</th>
-                    <th>Фамилия</th>
-                    <th>Группа</th>
+                    <th>Номер</th>
+                    <th>Курс</th>
                 </tr>
             </tfoot>
             <tbody>

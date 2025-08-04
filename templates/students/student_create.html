@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block header %}
+<h1 class="mt-4">Создание студента</h1>
+{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item"><a href="{{ url_for('students') }}">Студенты</a></li>
+    <li class="breadcrumb-item active">Создание</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-5">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header"><h3 class="text-center font-weight-light my-4">Новый студент</h3></div>
+                <div class="card-body">
+                    <form action="{{ url_for('create_student') }}" method="post">
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <div class="form-floating mb-3">
+                                    <input class="form-control" id="first_name" name="first_name" type="text" placeholder="Имя"/>
+                                    <label for="first_name">Имя</label>
+                                </div>
+                                <div class="form-floating mb-3">
+                                    <input class="form-control" id="middle_name" name="middle_name" type="text" placeholder="Отчество"/>
+                                    <label for="middle_name">Отчество</label>
+                                </div>
+                                <div class="form-floating mb-3">
+                                    <input class="form-control" id="last_name" name="last_name" type="text" placeholder="Фамилия"/>
+                                    <label for="last_name">Фамилия</label>
+                                </div>
+                                <div class="form-floating mb-3">
+                                    <input class="form-control" id="date_of_birth" name="date_of_birth" type="text" placeholder="Дата рождения"/>
+                                    <label for="date_of_birth">Дата рождения</label>
+                                </div>
+                                <div class="form-floating mb-3">
+                                    <input class="form-control" id="inn" name="inn" type="text" placeholder="ИНН"/>
+                                    <label for="inn">ИНН</label>
+                                </div>
+                                <div class="form-floating mb-3">
+                                    <input class="form-control" id="gender" name="gender" type="text" placeholder="Гендер"/>
+                                    <label for="gender">Гендер</label>
+                                </div>
+                                <div class="form-floating">
+                                    <select class="form-control" id="groups_id" name="groups_id" type="number" placeholder="Группа" required>
+                                        {% for group in groups %}
+                                        <option value="{{ group.id }}">{{ group.num }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <label for="groups_id">Группа</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <button class="btn btn-primary" type="submit">Создать</button>
+                            </div>
+                            <div class="col-md-4 px-0">
+                                <a class="btn btn-secondary" href="{{ url_for('teachers') }}">Отменить</a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

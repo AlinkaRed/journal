@@ -52,6 +52,9 @@ class Student(SQLModel, table=True):
     first_name: str = Field()
     middle_name: str | None = Field(default=None)
     last_name: str = Field()
+    date_of_birth: str = Field()
+    inn: int = Field()
+    gender: str = Field()
 
     groups_id: int | None = Field(default=None, foreign_key="groups.id")
     group: Group | None = Relationship(back_populates="students")
@@ -67,6 +70,8 @@ class Teacher(SQLModel, table=True):
     first_name: str = Field()
     middle_name: str | None = Field(default=None)
     last_name: str = Field()
+    date_of_birth: str = Field()
+    inn: int = Field()
 
     def __repr__(self) -> str:
         return f"Teacher(id={self.id!r}, first_name={self.first_name!r}, middle_name={self.middle_name!r}, last_name={self.last_name!r}"

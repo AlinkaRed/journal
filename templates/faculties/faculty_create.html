@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block header %}
+<h1 class="mt-4">Создание факультета</h1>
+{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item"><a href="{{ url_for('faculties') }}">Факультеты</a></li>
+    <li class="breadcrumb-item active">Создание</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-5">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header"><h3 class="text-center font-weight-light my-4">Новый факультет</h3></div>
+                <div class="card-body">
+                    <form action="{{ url_for('create_faculty') }}" method="post">
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <div class="form-floating mb-3">
+                                    <input class="form-control" id="name" name="name" type="text" placeholder="Название" required />
+                                    <label for="name">Название</label>
+                                </div>
+                                <div class="form-floating">
+                                    <input class="form-control" id="num" name="num" type="number" placeholder="Номер" required />
+                                    <label for="num">Номер</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <button class="btn btn-primary" type="submit">Создать</button>
+                            </div>
+                            <div class="col-md-4 px-0">
+                                <a class="btn btn-secondary" href="{{ url_for('faculties') }}">Отменить</a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
