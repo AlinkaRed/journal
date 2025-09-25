@@ -6,7 +6,8 @@ from sqlmodel import Session, create_engine
 import local_settings as ls
 
 
-engine = create_engine(f"postgresql+psycopg2://{ls.DB_USER}:{ls.DB_PASSWORD}@{ls.DB_HOST}:{ls.DB_PORT}/{ls.DB_NAME}")
+database_url = f"postgresql+psycopg2://{ls.DB_USER}:{ls.DB_PASSWORD}@{ls.DB_HOST}:{ls.DB_PORT}/{ls.DB_NAME}"
+engine = create_engine(database_url)
 
 
 def get_session():
