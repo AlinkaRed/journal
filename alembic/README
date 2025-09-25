@@ -8,6 +8,8 @@ alembic init alembic
 
 alembic revision -m "create account table"
 
+alembic revision --autogenerate -m "init"
+
 alembic upgrade head
 alembic upgrade ae1
 alembic upgrade +2
