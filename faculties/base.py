@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic.main import BaseModel
 from sqlmodel import SQLModel
+from sqlalchemy import exists
 
 from db.base import SessionDep
 from db.models import Faculty
@@ -18,7 +19,7 @@ faculties_router = APIRouter(prefix='/faculties', tags=['Faculties'])
 @faculties_router.get("/", response_class=HTMLResponse)
 def faculties(request: Request):
     return templates.TemplateResponse(
-        request=request, name="faculties/faculties.html", context={}
+        request=request, name="faculties/faculties_all.html", context={}
     )
 
 
@@ -82,17 +83,48 @@ def faculty_add(request: Request, session: SessionDep):
 
 @faculties_router.post("/create/", response_class=HTMLResponse)
 def faculty_create(
-    request: Request,
-    session: SessionDep,
-    name: Annotated[str, Form()],
-    num: Annotated[int, Form()]
+        request: Request,
+        session: SessionDep,
+        name: Annotated[str, Form()],
+        num: Annotated[int, Form()],
 ):
+    errors = {}
+
+    name_exists = session.query(
+        exists().where(Faculty.name == name)
+    ).scalar()
+
+    num_exists = session.query(
+        exists().where(Faculty.num == num)
+    ).scalar()
+
+    if name_exists:
+        errors["name"] = "Факультет с таким названием уже существует"
+
+    if num_exists:
+        errors["num"] = "Факультет с таким номером уже существует"
+
+    if num < 0:
+        errors["num"] = "Номер факультета не может быть отрицательным"
+
+    if errors:
+        return templates.TemplateResponse(
+            request=request,
+            name="faculties/faculty_create.html",
+            context={
+                "error": "Невалидные данные",
+                "field_errors": errors,
+                "form_data": {"name": name, "num": num},
+            },
+        )
+
     faculty = Faculty(name=name, num=num)
     session.add(faculty)
     session.commit()
     session.refresh(faculty)
+
     return templates.TemplateResponse(
         request=request,
         name="faculties/faculty_details.html",
-        context={'faculty': faculty}
+        context={"faculty": faculty},
     )

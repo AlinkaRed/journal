@@ -5,9 +5,10 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic.main import BaseModel
 from sqlmodel import SQLModel, select
+from sqlalchemy import exists, and_
 
 from db.base import SessionDep
-from db.models import Group, Course
+from db.models import Group, Course, Student
 
 
 templates = Jinja2Templates(directory="templates")
@@ -18,7 +19,7 @@ groups_router = APIRouter(prefix='/groups', tags=['Groups'])
 @groups_router.get("/", response_class=HTMLResponse)
 def groups(request: Request):
     return templates.TemplateResponse(
-        request=request, name="groups/groups.html", context={}
+        request=request, name="groups/groups_all.html", context={}
     )
 
 
@@ -88,16 +89,39 @@ def group_create(
         request: Request,
         session: SessionDep,
         num: Annotated[int, Form()],
-        course_id: Annotated[int, Form()]
+        course_id: Annotated[int, Form()],
 ):
-    c = session.get(Course, course_id)
-    if not c:
-        raise HTTPException(status_code=404, detail="Course not found")
+    errors = {}
+
+    group_exists = session.query(
+        exists().where(and_(
+            Group.num == num,
+            Group.course_id == course_id
+        ))
+    ).scalar()
+
+    if group_exists:
+        errors["num"] = "Группа с таким номером уже существует для этого курса"
+        errors["course_id"] = "Выберите другой курс или измените номер группы"
+
+    if errors:
+        courses = session.query(Course).all()
+        return templates.TemplateResponse(
+            request=request,
+            name="groups/group_create.html",
+            context={
+                "error": "Невалидные данные",
+                "field_errors": errors,
+                "form_data": {"num": num, "course_id": course_id},
+                "courses": courses
+            },
+        )
 
     g = Group(num=num, course_id=course_id)
     session.add(g)
     session.commit()
     session.refresh(g)
+
     return templates.TemplateResponse(
         request=request,
         name="groups/group_details.html",

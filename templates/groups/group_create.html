@@ -6,42 +6,65 @@
 
 {% block breadcrumbs %}
 <ol class="breadcrumb mb-4">
-    <li class="breadcrumb-item"><a href="{{ url_for('courses') }}">Группы</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('groups') }}">Группы</a></li>
     <li class="breadcrumb-item active">Создание</li>
 </ol>
 {% endblock %}
 
 {% block content %}
+
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-lg-5">
             <div class="card shadow-lg border-0 rounded-lg mt-5">
-                <div class="card-header"><h3 class="text-center font-weight-light my-4">Новая группа</h3></div>
+                <div class="card-header"><h3 class="text-center font-weight-light my-4">Новый курс</h3></div>
                 <div class="card-body">
                     <form action="{{ url_for('group_create') }}" method="post">
-                        <div class="row mb-3">
-                            <div class="col-md-12">
-                                <div class="form-floating">
-                                    <input class="form-control" id="num" name="num" type="number" placeholder="Номер" required />
-                                    <label for="num">Номер</label>
-                                </div>
-                                <div class="form-floating">
-                                    <select class="form-control" id="course_id" name="course_id" type="number" placeholder="Курс" required>
-                                        {% for course in courses %}
-                                        <option value="{{ course.id }}">{{ course.num }}</option>
-                                        {% endfor %}
-                                    </select>
-                                    <label for="num">Курс</label>
-                                </div>
-                            </div>
+                        {% if error %}
+                        <div class="alert alert-danger mb-3">{{ error }}</div>
+                        {% endif %}
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control {% if field_errors and 'num' in field_errors %}is-invalid{% endif %}"
+                                id="num"
+                                name="num"
+                                type="number"
+                                placeholder="Номер"
+                                value="{{ form_data.num if form_data else '' }}"
+                                required
+                            />
+                            <label for="num">Номер</label>
+                            {% if field_errors and 'num' in field_errors %}
+                                <div class="invalid-feedback">{{ field_errors.num }}</div>
+                            {% endif %}
                         </div>
-                        <div class="row">
-                            <div class="col-md-4">
-                                <button class="btn btn-primary" type="submit">Создать</button>
-                            </div>
-                            <div class="col-md-4 px-0">
-                                <a class="btn btn-secondary" href="{{ url_for('groups') }}">Отменить</a>
-                            </div>
+
+                        <div class="form-floating mb-3">
+                            <select
+                                class="form-control {% if field_errors and 'course_id' in field_errors %}is-invalid{% endif %}"
+                                id="course_id"
+                                name="course_id"
+                                required
+                            >
+                                {% for course in courses %}
+                                <option
+                                    value="{{ course.id }}"
+                                    {% if form_data and form_data.course_id|int == course.id %}selected{% endif %}
+                                >
+                                    {{ course.num }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <label for="course_id">Курс</label>
+                            {% if field_errors and 'course_id' in field_errors %}
+                                <div class="invalid-feedback">{{ field_errors.course_id }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-primary" type="submit">Создать</button>
+                            <a class="btn btn-secondary" href="{{ url_for('groups') }}">Отменить</a>
                         </div>
                     </form>
                 </div>

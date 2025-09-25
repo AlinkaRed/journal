@@ -1,0 +1,810 @@
+{% extends "base.html" %}
+
+{% block css %}
+    {{ super() }}
+    <style>
+        .hidden {display: none}
+        .studentDetailsButton {width: auto}
+    </style>
+{% endblock %}
+
+{% block js %}
+    {{ super() }}
+    <script>
+        let groupsList = [];
+
+        function loadGroups() {
+            return $.get("/api/groups/")
+                .then(function(response) {
+                    groupsList = response.data;
+                    return groupsList;
+                });
+        }
+
+        function getGroupName(groupId) {
+            const group = groupsList.find(f => f.id == groupId);
+            return group ? group.num : 'ID: ' + groupId;
+        }
+
+        function formatDateForInput(dateString) {
+            if (!dateString) return '';
+
+            const parts = dateString.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}.${parts[1]}.${parts[0]}`;
+            }
+            return dateString;
+        }
+
+        function parseDateFromInput(dateString) {
+            if (!dateString) return '';
+
+            const parts = dateString.split('.');
+            if (parts.length === 3) {
+                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            return dateString;
+        }
+
+        function drawStudentList(){
+            return $('#mainTable').DataTable({
+                ajax: {
+                    url: '/api/students/',
+                    dataSrc: 'data',
+                    data: function(d) {
+                        d.expand = ['group'];
+                    }
+                },
+                processing: false,
+                serverSide: false,
+                columns: [
+                    { data: 'id', width: 40},
+                    { data: 'last_name', className: 'dt-body-left' },
+                    { data: 'first_name', className: 'dt-body-left' },
+                    { data: 'middle_name', className: 'dt-body-left' },
+                    {
+                        data: 'group',
+                        render: function(data) {
+                            return data ? data.num : 'Не указана';
+                        }, className: 'dt-body-left'
+                    },
+                    {
+                        width: 100,
+                        render: function ( data, type, row ) {
+                            return '<button type="text" class="studentDetailsButton btn btn-secondary">Детали</button>';
+                        }
+                    },
+                ],
+                language: {
+                    info: 'Страница _PAGE_ из _PAGES_',
+                    infoEmpty: 'Нет данных',
+                    infoFiltered: '(отфильтровано из _MAX_ записей)',
+                    lengthMenu: '_MENU_ записей на странице',
+                    zeroRecords: 'Нет данных',
+                    search: 'Поиск',
+                }
+            });
+        };
+
+        function showStudentDetails(studentID){
+            $.get("/api/students/" + studentID, function(data) {
+               const groupName = data.group ? data.group.num :
+                          (data.groups_id ? getGroupName(data.groups_id) : 'Не указана');
+               $("#studentList").hide();
+               $("#studentEditForm").addClass("hidden");
+               $("#studentCreateForm").addClass("hidden");
+               $("#studentDetails #studentDetailsID").text(data.id);
+               $("#studentDetails #studentDetailsFirstName").text(data.first_name);
+               $("#studentDetails #studentDetailsMiddleName").text(data.middle_name || '');
+               $("#studentDetails #studentDetailsLastName").text(data.last_name);
+
+               const displayDate = data.date_of_birth ? formatDateForInput(data.date_of_birth) : '';
+               $("#studentDetails #studentDetailsDateOfBirth").text(displayDate);
+
+               $("#studentDetails #studentDetailsINN").text(data.inn);
+               $("#studentDetails #studentDetailsGender").text(data.gender || 'Не указан');
+               $("#studentDetails #studentDetailsGroup").text(groupName);
+               $("#studentDetails #editStudent").attr("data-student-id", studentID);
+               $("#studentDetails #deleteStudent").attr("data-student-id", studentID);
+               $("#studentDetails").removeClass("hidden");
+            });
+        };
+
+        function showStudentEditForm(studentID){
+            $.get("/api/students/" + studentID, function(data) {
+               $("#studentList").hide();
+               $("#studentDetails").addClass("hidden");
+               $("#studentCreateForm").addClass("hidden");
+               $("#studentEditForm #studentEditFirstName").val(data.first_name);
+               $("#studentEditForm #studentEditMiddleName").val(data.middle_name || '');
+               $("#studentEditForm #studentEditLastName").val(data.last_name);
+
+               const formattedDate = data.date_of_birth ? formatDateForInput(data.date_of_birth) : '';
+               $("#studentEditForm #studentEditDateOfBirth").val(formattedDate);
+
+               $("#studentEditForm #studentEditINN").val(data.inn);
+               $("#studentEditForm #studentEditGender").val(data.gender);
+               $("#studentEditForm #studentEditGroups_id").val(data.groups_id);
+               $("#studentEditForm #submitStudentForm").attr("data-student-id", studentID);
+               $("#studentEditForm").removeClass("hidden");
+            });
+        };
+
+        function showStudentDeleteForm(studentID){
+            $.get("/api/students/" + studentID, function(data) {
+                $("#studentList").hide();
+                $("#studentDetails").addClass("hidden");
+                $("#studentEditForm").addClass("hidden");
+                $("#studentCreateForm").addClass("hidden");
+
+                $("#studentDeleteForm .alert").remove();
+
+                $("#submitdelete").attr("data-student-id", studentID);
+                $("#deleteStudent").attr("data-student-id", studentID);
+
+                $("#studentDeleteForm .card-body").prepend(
+                    '<div class="alert alert-info mb-3">' +
+                    'Вы уверены, что хотите удалить студента' +
+                    '?</div>'
+                );
+
+                $("#studentDeleteForm").removeClass("hidden");
+            });
+        };
+
+        function showStudentCreateForm(){
+            $("#studentList").hide();
+            $("#studentDetails").addClass("hidden");
+            $("#studentEditForm").addClass("hidden");
+            $("#studentCreateForm input").val("");
+            $("#studentCreateForm select").val("");
+            $("#studentCreateForm .is-invalid").removeClass("is-invalid");
+            $("#studentCreateForm .invalid-feedback").remove();
+            $("#studentCreateForm .alert").remove();
+            $("#studentCreateForm").removeClass("hidden");
+        };
+
+        function populateGroupSelects() {
+            const groupSelects = [
+                "#groups_id",
+                "#studentEditGroups_id"
+            ];
+
+            groupSelects.forEach(selector => {
+                const $select = $(selector);
+                $select.empty();
+                $select.append($('<option></option>').val('').text('Выберите группу').prop('disabled', true).prop('selected', true));
+
+                groupsList.forEach(group => {
+                    $select.append(
+                        $('<option></option>')
+                            .val(group.id)
+                            .text(group.num)
+                    );
+                });
+            });
+        }
+
+        $(document).ready(function() {
+            loadGroups().then(function() {
+                populateGroupSelects();
+                table = drawStudentList();
+
+                $('#mainTable tbody').on('click', 'tr', function() {
+                    var rowData = table.row(this).data();
+                    var studentID = rowData['id'];
+                    showStudentDetails(studentID);
+                });
+            });
+
+            $("#addStudent").on("click", function(e){
+                showStudentCreateForm();
+            });
+
+            $("#editStudent").on("click", function(e){
+                var studentID = $(this).data("student-id");
+                showStudentEditForm(studentID);
+            });
+
+            $("#deleteStudent").on("click", function(e){
+                var studentID = $(this).data("student-id");
+                showStudentDeleteForm(studentID);
+            });
+
+            $("#cancelStudentDetails").on("click", function(e){
+                $("#studentList").show();
+                table.ajax.reload();
+                $("#studentDetails").addClass("hidden");
+                $("#studentEditForm").addClass("hidden");
+                $("#studentDeleteForm").addClass("hidden");
+                $("#studentCreateForm").addClass("hidden");
+            });
+
+            $("#cancelStudentDelete").on("click", function(e){
+                $("#studentList").show();
+                table.ajax.reload();
+                $("#studentDetails").addClass("hidden");
+                $("#studentEditForm").addClass("hidden");
+                $("#studentDeleteForm").addClass("hidden");
+                $("#studentCreateForm").addClass("hidden");
+                $("#studentList").show();
+                $("#studentDeleteForm").addClass("hidden");
+            });
+
+            $("#cancelStudentForm").on("click", function(e){
+                var studentID = $("#submitStudentForm").data("student-id");
+                if (studentID) {
+                    showStudentDetails(studentID);
+                } else {
+                    $("#studentList").show();
+                    table.ajax.reload();
+                    $("#studentEditForm").addClass("hidden");
+                    $("#studentDeleteForm").addClass("hidden");
+                    $("#studentCreateForm").addClass("hidden");
+                }
+            });
+
+            $("#cancelCreateStudent").on("click", function(e){
+                $("#studentList").show();
+                table.ajax.reload();
+                $("#studentCreateForm").addClass("hidden");
+            });
+
+            $("#submitStudentForm").on("click", function(e) {
+                e.preventDefault();
+
+                $("#editFormError").hide();
+                $(".is-invalid").removeClass("is-invalid");
+                $(".invalid-feedback").hide();
+
+                const dateOfBirth = parseDateFromInput($("#studentEditDateOfBirth").val());
+
+                var formData = {
+                    first_name: $("#studentEditFirstName").val(),
+                    middle_name: $("#studentEditMiddleName").val(),
+                    last_name: $("#studentEditLastName").val(),
+                    date_of_birth: dateOfBirth,
+                    inn: parseInt($("#studentEditINN").val()),
+                    gender: $("#studentEditGender").val(),
+                    groups_id: parseInt($("#studentEditGroups_id").val())
+                };
+
+                var studentID = $(this).data("student-id");
+
+                if (!formData.first_name) {
+                    $("#studentEditFirstName").addClass("is-invalid");
+                    $("#studentEditFirstNameError").text("Введите имя").show();
+                    return;
+                }
+
+                if (!formData.last_name) {
+                    $("#studentEditLastName").addClass("is-invalid");
+                    $("#studentEditLastNameError").text("Введите фамилию").show();
+                    return;
+                }
+
+                if (!formData.date_of_birth) {
+                    $("#studentEditDateOfBirth").addClass("is-invalid");
+                    $("#studentEditDateOfBirthError").text("Введите дату рождения").show();
+                    return;
+                }
+
+                const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+                if (!dateRegex.test(formData.date_of_birth)) {
+                    $("#studentEditDateOfBirth").addClass("is-invalid");
+                    $("#studentEditDateOfBirthError").text("Неверный формат даты. Используйте ДД.ММ.ГГГГ").show();
+                    return;
+                }
+
+                if (isNaN(formData.inn) || formData.inn <= 0) {
+                    $("#studentEditINN").addClass("is-invalid");
+                    $("#studentEditINNError").text("ИНН должен быть положительным числом").show();
+                    return;
+                }
+
+                if (!formData.gender) {
+                    $("#studentEditGender").addClass("is-invalid");
+                    $("#studentEditGenderError").text("Выберите пол").show();
+                    return;
+                }
+
+                if (isNaN(formData.groups_id)) {
+                    $("#studentEditGroups_id").addClass("is-invalid");
+                    $("#studentEditGroups_idError").text("Выберите группу").show();
+                    return;
+                }
+
+                $.ajax({
+                    url: "/api/students/" + studentID,
+                    type: 'PATCH',
+                    contentType: 'application/json',
+                    data: JSON.stringify(formData),
+                    success: function(response) {
+                        showStudentDetails(response.id);
+                    },
+                    error: function(jqXHR) {
+                        var errorData = jqXHR.responseJSON.detail;
+
+                        if (errorData.error) {
+                            $("#editFormError").text(errorData.error).show();
+                        }
+
+                        if (errorData.field_errors) {
+                            for (var field in errorData.field_errors) {
+                                var fieldName = "studentEdit" + field.charAt(0).toUpperCase() + field.slice(1);
+                                $("#" + fieldName).addClass("is-invalid");
+                                $("#" + fieldName + "Error").text(errorData.field_errors[field]).show();
+                            }
+                        }
+                    }
+                });
+            });
+
+            $("#deleteStudentForm").on("submit", function(e){
+                e.preventDefault();
+
+                var studentID = $("#deleteStudent").data("student-id");
+
+                $.ajax({
+                    url: "/api/students/" + studentID,
+                    type: 'DELETE',
+                    success: function(response) {
+                        $("#studentList").show();
+                        table.ajax.reload();
+                        $("#studentDeleteForm").addClass("hidden");
+                    },
+                    error: function(jqXHR) {
+                        var errorData = jqXHR.responseJSON;
+                        $("#deleteFormError").text(errorData.detail || "Ошибка при удалении").show();
+                    }
+                });
+            });
+
+            $("#createStudentForm").on("submit", function(e){
+                e.preventDefault();
+
+                const dateOfBirth = parseDateFromInput($("#createStudentDateOfBirth").val());
+
+                var formData = {
+                    first_name: $("#createStudentFirstName").val(),
+                    middle_name: $("#createStudentMiddleName").val(),
+                    last_name: $("#createStudentLastName").val(),
+                    date_of_birth: dateOfBirth,
+                    inn: parseInt($("#createStudentINN").val()),
+                    gender: $("#createStudentGender").val(),
+                    groups_id: parseInt($("#groups_id").val())
+                };
+
+                if (!formData.first_name) {
+                    $("#createStudentFirstName").addClass("is-invalid");
+                    $("#createStudentFirstNameError").text("Введите имя").show();
+                    return;
+                }
+
+                if (!formData.last_name) {
+                    $("#createStudentLastName").addClass("is-invalid");
+                    $("#createStudentLastNameError").text("Введите фамилию").show();
+                    return;
+                }
+
+                if (!formData.date_of_birth) {
+                    $("#createStudentDateOfBirth").addClass("is-invalid");
+                    $("#createStudentDateOfBirthError").text("Введите дату рождения").show();
+                    return;
+                }
+
+                const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+                if (!dateRegex.test(formData.date_of_birth)) {
+                    $("#createStudentDateOfBirth").addClass("is-invalid");
+                    $("#createStudentDateOfBirthError").text("Неверный формат даты. Используйте ДД.ММ.ГГГГ").show();
+                    return;
+                }
+
+                if (isNaN(formData.inn) || formData.inn <= 0) {
+                    $("#createStudentINN").addClass("is-invalid");
+                    $("#createStudentINNError").text("ИНН должен быть положительным числом").show();
+                    return;
+                }
+
+                if (!formData.gender) {
+                    $("#createStudentGender").addClass("is-invalid");
+                    $("#createStudentGenderError").text("Выберите пол").show();
+                    return;
+                }
+
+                if (isNaN(formData.groups_id)) {
+                    $("#groups_id").addClass("is-invalid");
+                    $("#groups_idError").text("Выберите группу").show();
+                    return;
+                }
+
+                $.ajax({
+                    url: "/api/students/",
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(formData),
+                    success: function(response) {
+                        $("#studentList").show();
+                        table.ajax.reload();
+                        $("#studentCreateForm").addClass("hidden");
+                    },
+                    error: function(jqXHR) {
+                        var errors = jqXHR.responseJSON.detail;
+                        $("#studentCreateForm .alert").remove();
+                        $("#studentCreateForm .is-invalid").removeClass("is-invalid");
+                        $("#studentCreateForm .invalid-feedback").remove();
+
+                        if (errors.error) {
+                            $("#studentCreateForm").prepend(
+                                '<div class="alert alert-danger mb-3">' + errors.error + '</div>'
+                            );
+                        }
+
+                        if (errors.field_errors) {
+                            $.each(errors.field_errors, function(field, message) {
+                                var fieldId = field === "groups_id" ? "groups_id" :
+                                    "createStudent" + field.charAt(0).toUpperCase() + field.slice(1);
+                                $("#" + fieldId)
+                                    .addClass("is-invalid")
+                                    .after('<div class="invalid-feedback">' + message + '</div>');
+                            });
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+{% endblock %}
+
+{% block header %}
+<h1 id="studentHeader" class="mt-4">Студенты</h1>
+{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item active">Студенты</li>
+    <li class="breadcrumb-item active hidden" id="studentBreadcrumb"></li>
+</ol>
+{% endblock %}
+
+{% block content %}
+
+<div id="studentList" class="card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div></div>
+            <button id="addStudent" class="btn btn-primary">Добавить</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <table id="mainTable" class="datatable-table stripe">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Фамилия</th>
+                    <th>Имя</th>
+                    <th>Отчество</th>
+                    <th>Группа</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tfoot>
+                <tr>
+                    <th>ID</th>
+                    <th>Фамилия</th>
+                    <th>Имя</th>
+                    <th>Отчество</th>
+                    <th>Группа</th>
+                    <th></th>
+                </tr>
+            </tfoot>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="studentDetails" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-body">
+                    <table class="datatable-table stripe">
+                        <tr>
+                            <th width="30%">ID</th>
+                            <td id="studentDetailsID"></td>
+                        </tr>
+                        <tr>
+                            <th>Имя</th>
+                            <td id="studentDetailsFirstName"></td>
+                        </tr>
+                        <tr>
+                            <th>Отчество</th>
+                            <td id="studentDetailsMiddleName"></td>
+                        </tr>
+                        <tr>
+                            <th>Фамилия</th>
+                            <td id="studentDetailsLastName"></td>
+                        </tr>
+                        <tr>
+                            <th>Дата рождения</th>
+                            <td id="studentDetailsDateOfBirth"></td>
+                        </tr>
+                        <tr>
+                            <th>ИНН</th>
+                            <td id="studentDetailsINN"></td>
+                        </tr>
+                        <tr>
+                            <th>Пол</th>
+                            <td id="studentDetailsGender"></td>
+                        </tr>
+                        <tr>
+                            <th>Группа</th>
+                            <td id="studentDetailsGroup"></td>
+                        </tr>
+                    </table>
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <button id="editStudent" class="btn btn-primary">Редактировать</button>
+                        </div>
+                        <div class="col-md-4">
+                            <button id="deleteStudent" class="btn btn-primary">Удалить</button>
+                        </div>
+                        <div class="col-md-4">
+                            <button id="cancelStudentDetails" class="btn btn-secondary">Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="studentEditForm" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header">
+                    <h3 class="text-center font-weight-light my-4">Редактирование студента</h3>
+                </div>
+                <div class="card-body">
+                    <form id="editStudentForm">
+                        <div id="editFormError" class="alert alert-danger mb-3" style="display: none;"></div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="studentEditFirstName"
+                                name="first_name"
+                                type="text"
+                                placeholder="Имя"
+                                required
+                            />
+                            <label for="studentEditFirstName">Имя</label>
+                            <div id="studentEditFirstNameError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="studentEditMiddleName"
+                                name="middle_name"
+                                type="text"
+                                placeholder="Отчество"
+                            />
+                            <label for="studentEditMiddleName">Отчество</label>
+                            <div id="studentEditMiddleNameError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="studentEditLastName"
+                                name="last_name"
+                                type="text"
+                                placeholder="Фамилия"
+                                required
+                            />
+                            <label for="studentEditLastName">Фамилия</label>
+                            <div id="studentEditLastNameError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="studentEditDateOfBirth"
+                                name="date_of_birth"
+                                type="text"
+                                placeholder="Дата рождения (ДД.ММ.ГГГГ)"
+                                pattern="\d{2}\.\d{2}\.\d{4}"
+                                required
+                            />
+                            <label for="studentEditDateOfBirth">Дата рождения (ДД.ММ.ГГГГ)</label>
+                            <div id="studentEditDateOfBirthError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="studentEditINN"
+                                name="inn"
+                                type="number"
+                                placeholder="ИНН"
+                                min="1"
+                                required
+                            />
+                            <label for="studentEditINN">ИНН</label>
+                            <div id="studentEditINNError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <select
+                                class="form-control"
+                                id="studentEditGender"
+                                name="gender"
+                                required
+                            >
+                                <option value="">Выберите пол</option>
+                                <option value="М">Мужской</option>
+                                <option value="Ж">Женский</option>
+                            </select>
+                            <label for="studentEditGender">Пол</label>
+                            <div id="studentEditGenderError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <select
+                                class="form-control"
+                                id="studentEditGroups_id"
+                                name="groups_id"
+                                required
+                            >
+                            </select>
+                            <label for="studentEditGroups_id">Группа</label>
+                            <div id="studentEditGroups_idError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button id="submitStudentForm" class="btn btn-primary" type="submit">Сохранить</button>
+                            <button id="cancelStudentForm" class="btn btn-secondary" type="button">Отменить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="studentDeleteForm" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header">
+                    <h3 class="text-center font-weight-light my-4">Удаление студента</h3>
+                </div>
+                <div class="card-body">
+                    <div id="deleteStudentInfo"></div>
+                    <form id="deleteStudentForm">
+                        <div id="deleteFormError" class="alert alert-danger mb-3" style="display: none;"></div>
+                        <div class="d-flex gap-2 mt-4 justify-content-center">
+                            <button id="submitdelete" class="btn btn-danger" type="submit">Удалить</button>
+                            <button id="cancelStudentDelete" class="btn btn-secondary" type="button">Отменить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="studentCreateForm" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header"><h3 class="text-center font-weight-light my-4">Создание нового студента</h3></div>
+                <div class="card-body">
+                    <form id="createStudentForm">
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="createStudentFirstName"
+                                name="first_name"
+                                type="text"
+                                placeholder="Имя"
+                                required
+                            />
+                            <label for="createStudentFirstName">Имя</label>
+                            <div id="createStudentFirstNameError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="createStudentMiddleName"
+                                name="middle_name"
+                                type="text"
+                                placeholder="Отчество"
+                            />
+                            <label for="createStudentMiddleName">Отчество</label>
+                            <div id="createStudentMiddleNameError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="createStudentLastName"
+                                name="last_name"
+                                type="text"
+                                placeholder="Фамилия"
+                                required
+                            />
+                            <label for="createStudentLastName">Фамилия</label>
+                            <div id="createStudentLastNameError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="createStudentDateOfBirth"
+                                name="date_of_birth"
+                                type="text"
+                                placeholder="Дата рождения (ДД.ММ.ГГГГ)"
+                                pattern="\d{2}\.\d{2}\.\d{4}"
+                                required
+                            />
+                            <label for="createStudentDateOfBirth">Дата рождения (ДД.ММ.ГГГГ)</label>
+                            <div id="createStudentDateOfBirthError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="createStudentINN"
+                                name="inn"
+                                type="number"
+                                placeholder="ИНН"
+                                min="1"
+                                required
+                            />
+                            <label for="createStudentINN">ИНН</label>
+                            <div id="createStudentINNError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <select
+                                class="form-control"
+                                id="createStudentGender"
+                                name="gender"
+                                required
+                            >
+                                <option value="">Выберите пол</option>
+                                <option value="М">Мужской</option>
+                                <option value="Ж">Женский</option>
+                            </select>
+                            <label for="createStudentGender">Пол</label>
+                            <div id="createStudentGenderError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <select
+                                class="form-control"
+                                id="groups_id"
+                                name="groups_id"
+                                required
+                            >
+                            </select>
+                            <label for="groups_id">Группа</label>
+                            <div id="groups_idError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button class="btn btn-primary" type="submit">Создать</button>
+                            <button id="cancelCreateStudent" class="btn btn-secondary" type="button">Отменить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

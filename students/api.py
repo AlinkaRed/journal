@@ -1,9 +1,11 @@
-from typing import Annotated
+from typing import Annotated, Optional
 import random
+from datetime import date
 
 from fastapi import HTTPException, Query, Request, APIRouter
 from pydantic import BaseModel
 from sqlmodel import select
+from sqlalchemy import exists
 
 from db.base import SessionDep
 from db.models import Group, Course, Faculty, Student
@@ -14,6 +16,31 @@ students_api_router = APIRouter(prefix='/api/students', tags=['Students API'])
 
 @students_api_router.post("/", response_model=Student)
 def create_student(student: Student, session: SessionDep):
+    errors = {}
+
+    inn_exists = session.query(
+        exists().where(Student.inn == student.inn)
+    ).scalar()
+
+    if inn_exists:
+        errors["inn"] = "Студент с таким ИНН уже существует"
+
+    if errors:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Невалидные данные",
+                "field_errors": errors,
+                "form_data": {"first_name": student.first_name,
+                              "middle_name": student.middle_name,
+                              "last_name": student.last_name,
+                              "date_of_birth": student.date_of_birth,
+                              "inn": student.inn,
+                              "gender": student.gender,
+                              "groups_id": student.groups_id},
+            }
+        )
+
     session.add(student)
     session.commit()
     session.refresh(student)
@@ -23,9 +50,12 @@ def create_student(student: Student, session: SessionDep):
 class StudentItem(BaseModel):
     id: int
     first_name: str
-    middle_name: str | None
+    middle_name: Optional[str] = None
     last_name: str
-    group: Group
+    date_of_birth: str
+    inn: int
+    gender: Optional[str] = None
+    group: Optional[dict] = None
 
 
 class StudentDT(BaseModel):
@@ -34,12 +64,31 @@ class StudentDT(BaseModel):
 
 @students_api_router.get("/", response_model=StudentDT)
 def get_students(
-    session: SessionDep,
-    offset: int = 0,
-    limit: Annotated[int, Query(le=100)] = 100,
+        session: SessionDep,
+        offset: int = 0,
+        limit: Annotated[int, Query(le=100)] = 100,
 ):
-    students = session.scalars(select(Student).join(Group).offset(offset).limit(limit))
-    return {'data': students}
+    statement = select(Student).join(Group, isouter=True).offset(offset).limit(limit)
+    students = session.exec(statement).all()
+
+    students_list = []
+    for student in students:
+        student_data = {
+            "id": student.id,
+            "first_name": student.first_name,
+            "middle_name": student.middle_name,
+            "last_name": student.last_name,
+            "date_of_birth": student.date_of_birth.isoformat() if student.date_of_birth else "",
+            "inn": student.inn,
+            "gender": student.gender,
+            "group": {
+                "id": student.group.id if student.group else None,
+                "num": student.group.num if student.group else "Не указана"
+            } if student.group else None
+        }
+        students_list.append(student_data)
+
+    return {'data': students_list}
 
 
 @students_api_router.get("/{student_id}", response_model=Student)
@@ -51,12 +100,35 @@ def get_student(student_id: int, session: SessionDep):
 
 
 @students_api_router.patch("/{student_id}", response_model=Student)
-def update_student(student_id: int, student: Student, session: SessionDep):
+def update_student(student_id: int, student_data: dict, session: SessionDep):
+    errors = {}
+
     student_db = session.get(Student, student_id)
     if not student_db:
         raise HTTPException(status_code=404, detail="Student not found")
-    student_data = student.model_dump(exclude_unset=True)
-    student_db.sqlmodel_update(student_data)
+
+    if student_data.get('inn') is not None:
+        if student_data['inn'] != student_db.inn:
+            inn_exists = session.query(
+                exists().where(Student.inn == student_data['inn'])
+            ).scalar()
+
+            if inn_exists:
+                errors["inn"] = "Студент с таким ИНН уже существует"
+
+    if errors:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Невалидные данные",
+                "field_errors": errors,
+            }
+        )
+
+    for key, value in student_data.items():
+        if hasattr(student_db, key) and value is not None:
+            setattr(student_db, key, value)
+
     session.add(student_db)
     session.commit()
     session.refresh(student_db)

@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic.main import BaseModel
 from sqlmodel import SQLModel, select
+from sqlalchemy import exists, and_
 
 from db.base import SessionDep
 from db.models import Student, Group
@@ -18,7 +19,7 @@ students_router = APIRouter(prefix='/students', tags=['Students'])
 @students_router.get("/", response_class=HTMLResponse)
 def students(request: Request):
     return templates.TemplateResponse(
-        request=request, name="students/students.html", context={}
+        request=request, name="students/students_all.html", context={}
     )
 
 
@@ -89,26 +90,62 @@ def student_add(request: Request, session: SessionDep):
 
 @students_router.post("/create/", response_class=HTMLResponse)
 def create_student(
-    request: Request,
-    session: SessionDep,
-    first_name: Annotated[str, Form()],
-    middle_name: Annotated[str, Form()],
-    last_name: Annotated[str, Form()],
-    date_of_birth: Annotated[str, Form()],
-    inn: Annotated[int, Form()],
-    gender: Annotated[str, Form()],
-    groups_id: Annotated[int, Form()],
+        request: Request,
+        session: SessionDep,
+        first_name: Annotated[str, Form()],
+        middle_name: Annotated[str, Form()],
+        last_name: Annotated[str, Form()],
+        date_of_birth: Annotated[str, Form()],
+        inn: Annotated[int, Form()],
+        gender: Annotated[str, Form()],
+        groups_id: Annotated[int, Form()],
 ):
+    errors = {}
+
+    inn_exists = session.query(
+        exists().where(Student.inn == inn)
+    ).scalar()
+
+    if inn_exists:
+        errors["inn"] = "Студент с таким ИНН уже существует"
+
     g = session.get(Group, groups_id)
     if not g:
-        raise HTTPException(status_code=404, detail="Group not found")
+        errors["groups_id"] = "Группа не найдена"
 
-    s = Student(first_name=first_name, middle_name=middle_name,
-                last_name=last_name, date_of_birth=date_of_birth, inn=inn,
-                gender=gender, groups_id=groups_id)
+    if errors:
+        return templates.TemplateResponse(
+            request=request,
+            name="students/student_create.html",
+            context={
+                "error": "Невалидные данные",
+                "field_errors": errors,
+                "form_data": {
+                    "first_name": first_name,
+                    "middle_name": middle_name,
+                    "last_name": last_name,
+                    "date_of_birth": date_of_birth,
+                    "inn": inn,
+                    "gender": gender,
+                    "groups_id": groups_id
+                },
+                "groups": session.query(Group).all()
+            },
+        )
+
+    s = Student(
+        first_name=first_name,
+        middle_name=middle_name,
+        last_name=last_name,
+        date_of_birth=date_of_birth,
+        inn=inn,
+        gender=gender,
+        groups_id=groups_id
+    )
     session.add(s)
     session.commit()
     session.refresh(s)
+
     return templates.TemplateResponse(
         request=request,
         name="students/student_details.html",

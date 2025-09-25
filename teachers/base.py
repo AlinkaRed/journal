@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic.main import BaseModel
 from sqlmodel import SQLModel
+from sqlalchemy import exists, and_
 
 from db.base import SessionDep
 from db.models import Teacher
@@ -18,7 +19,7 @@ teachers_router = APIRouter(prefix='/teachers', tags=['Teachers'])
 @teachers_router.get("/", response_class=HTMLResponse)
 def teachers(request: Request):
     return templates.TemplateResponse(
-        request=request, name="teachers/teachers.html", context={}
+        request=request, name="teachers/teachers_all.html", context={}
     )
 
 
@@ -86,18 +87,52 @@ def teacher_add(request: Request, session: SessionDep):
 
 @teachers_router.post("/create/", response_class=HTMLResponse)
 def create_teacher(
-    request: Request,
-    session: SessionDep,
-    first_name: Annotated[str, Form()],
-    middle_name: Annotated[str, Form()],
-    last_name: Annotated[str, Form()],
-    date_of_birth: Annotated[str, Form()],
-    inn: Annotated[int, Form()]
+        request: Request,
+        session: SessionDep,
+        first_name: Annotated[str, Form()],
+        middle_name: Annotated[str, Form()],
+        last_name: Annotated[str, Form()],
+        date_of_birth: Annotated[str, Form()],
+        inn: Annotated[int, Form()],
 ):
-    t = Teacher(first_name=first_name, middle_name=middle_name, last_name=last_name, date_of_birth=date_of_birth, inn=inn)
+    errors = {}
+
+    inn_exists = session.query(
+        exists().where(Teacher.inn == inn)
+    ).scalar()
+
+    if inn_exists:
+        errors["inn"] = "Преподаватель с таким ИНН уже существует"
+
+
+    if errors:
+        return templates.TemplateResponse(
+            request=request,
+            name="teachers/teacher_create.html",
+            context={
+                "error": "Невалидные данные",
+                "field_errors": errors,
+                "form_data": {
+                    "first_name": first_name,
+                    "middle_name": middle_name,
+                    "last_name": last_name,
+                    "date_of_birth": date_of_birth,
+                    "inn": inn,
+                },
+            },
+        )
+
+    t = Teacher(
+        first_name=first_name,
+        middle_name=middle_name,
+        last_name=last_name,
+        date_of_birth=date_of_birth,
+        inn=inn,
+    )
     session.add(t)
     session.commit()
     session.refresh(t)
+
     return templates.TemplateResponse(
         request=request,
         name="teachers/teacher_details.html",

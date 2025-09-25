@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic.main import BaseModel
 from sqlmodel import SQLModel, select
+from sqlalchemy import exists, and_
 
 from db.base import SessionDep
 from db.models import Course, Faculty
@@ -18,7 +19,7 @@ courses_router = APIRouter(prefix='/courses', tags=['Courses'])
 @courses_router.get("/", response_class=HTMLResponse)
 def courses(request: Request):
     return templates.TemplateResponse(
-        request=request, name="courses/courses.html", context={}
+        request=request, name="courses/courses_all.html", context={}
     )
 
 
@@ -88,19 +89,42 @@ def course_create(
         request: Request,
         session: SessionDep,
         num: Annotated[int, Form()],
-        faculty_id: Annotated[int, Form()]
+        faculty_id: Annotated[int, Form()],
 ):
-    faculty = session.get(Faculty, faculty_id)
-    if not faculty:
-        raise HTTPException(status_code=404, detail="Faculty not found")
+    errors = {}
 
-    c = Course(num=num, faculty_id=faculty_id)
-    session.add(c)
+    course_exists = session.query(
+        exists().where(and_(
+            Course.num == num,
+            Course.faculty_id == faculty_id
+        ))
+    ).scalar()
+
+    if course_exists:
+        errors["num"] = "Курс с таким номером уже существует для этого факультета"
+        errors["faculty_id"] = "Выберите другой факультет или измените номер курса"
+
+    if errors:
+        # Получаем список всех факультетов для select
+        faculties = session.query(Faculty).all()
+        return templates.TemplateResponse(
+            request=request,
+            name="courses/course_create.html",
+            context={
+                "error": "Невалидные данные",
+                "field_errors": errors,
+                "form_data": {"num": num, "faculty_id": faculty_id},
+                "faculties": faculties
+            },
+        )
+
+    course = Course(num=num, faculty_id=faculty_id)
+    session.add(course)
     session.commit()
-    session.refresh(c)
+    session.refresh(course)
+
     return templates.TemplateResponse(
         request=request,
         name="courses/course_details.html",
-        context={'course': c}
+        context={'course': course}
     )
-

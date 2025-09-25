@@ -1,0 +1,538 @@
+{% extends "base.html" %}
+
+{% block css %}
+    {{ super() }}
+    <style>
+        .hidden {display: none}
+        .groupDetailsButton {width: auto}
+    </style>
+{% endblock %}
+
+{% block js %}
+    {{ super() }}
+    <script>
+        let coursesList = [];
+
+        function loadCourses() {
+            return $.get("/api/courses/")
+                .then(function(response) {
+                    coursesList = response.data;
+                    return coursesList;
+                });
+        }
+
+        function getCourseNum(courseId) {
+            const course = coursesList.find(f => f.id == courseId);
+            return course ? course.num : 'ID: ' + courseId;
+        }
+
+        function drawGroupList(){
+            return $('#mainTable').DataTable({
+                ajax: {
+                    url: '/api/groups/',
+                    dataSrc: 'data',
+                    data: function(d) {
+                        d.expand = ['course'];
+                    }
+                },
+                processing: false,
+                serverSide: false,
+                columns: [
+                    { data: 'id', width: 40},
+                    { data: 'num', className: 'dt-body-left' },
+                    {
+                        data: 'course',
+                        render: function(data) {
+                            return data.num;
+                        }, className: 'dt-body-left'
+                    },
+                    {
+                        width: 100,
+                        render: function ( data, type, row ) {
+                            return '<button type="text" class="groupDetailsButton btn btn-secondary">Детали</button>';
+                        }
+                    },
+                ],
+                language: {
+                    info: 'Страница _PAGE_ из _PAGES_',
+                    infoEmpty: 'Нет данных',
+                    infoFiltered: '(отфильтровано из _MAX_ записей)',
+                    lengthMenu: '_MENU_ записей на странице',
+                    zeroRecords: 'Нет данных',
+                    search: 'Поиск',
+                }
+            });
+        };
+
+        function showGroupDetails(groupID){
+            $.get("/api/groups/" + groupID, function(data) {
+               const courseNum = data.course ? data.course.num :
+                          (data.course_id ? getCourseNum(data.course_id) : 'Не указан');
+               $("#groupList").hide();
+               $("#groupEditForm").addClass("hidden");
+               $("#groupCreateForm").addClass("hidden");
+               $("#groupDetails #groupDetailsID").text(data.id);
+               $("#groupDetails #groupDetailsNum").text(data.num);
+               $("#groupDetails #groupDetailsCourse").text(courseNum);
+               $("#groupDetails #editGroup").attr("data-group-id", groupID);
+               $("#groupDetails #deleteGroup").attr("data-group-id", groupID);
+               $("#groupDetails").removeClass("hidden");
+            });
+        };
+
+        function showGroupEditForm(groupID){
+            $.get("/api/groups/" + groupID, function(data) {
+               $("#groupList").hide();
+               $("#groupDetails").addClass("hidden");
+               $("#groupCreateForm").addClass("hidden");
+               $("#groupEditForm #groupEditNum").val(data.num);
+               $("#groupEditForm #groupEditCourse_id").val(data.course_id);
+               $("#groupEditForm #submitGroupForm").attr("data-group-id", groupID);
+               $("#groupEditForm").removeClass("hidden");
+            });
+        };
+
+        function showGroupDeleteForm(groupID){
+            $.get("/api/groups/" + groupID, function(data) {
+                $("#groupList").hide();
+                $("#groupDetails").addClass("hidden");
+                $("#groupEditForm").addClass("hidden");
+                $("#groupCreateForm").addClass("hidden");
+
+                $("#groupDeleteForm .alert").remove();
+
+                $("#submitdelete").attr("data-group-id", groupID);
+                $("#deleteGroup").attr("data-group-id", groupID);
+
+                $("#groupDeleteForm .card-body").prepend(
+                    '<div class="alert alert-info mb-3">' +
+                    'Вы уверены, что хотите удалить группу? ' +
+                    'Это может привести к удалению всех студентов этой группы.</div>'
+                );
+
+                $("#groupDeleteForm").removeClass("hidden");
+            });
+        };
+
+        function showGroupCreateForm(){
+            $("#groupList").hide();
+            $("#groupDetails").addClass("hidden");
+            $("#groupEditForm").addClass("hidden");
+            $("#groupCreateForm input").val("");
+            $("#groupCreateForm select").val("");
+            $("#groupCreateForm .is-invalid").removeClass("is-invalid");
+            $("#groupCreateForm .invalid-feedback").remove();
+            $("#groupCreateForm .alert").remove();
+            $("#groupCreateForm").removeClass("hidden");
+        };
+
+        function populateCourseSelects() {
+            const courseSelects = [
+                "#course_id",
+                "#groupEditCourse_id"
+            ];
+
+            courseSelects.forEach(selector => {
+                const $select = $(selector);
+                $select.empty();
+                $select.append($('<option></option>').val('').text('Выберите курс').prop('disabled', true).prop('selected', true));
+
+                coursesList.forEach(course => {
+                    $select.append(
+                        $('<option></option>')
+                            .val(course.id)
+                            .text(course.num)
+                    );
+                });
+            });
+        }
+
+        $(document).ready(function() {
+            loadCourses().then(function() {
+                populateCourseSelects();
+                table = drawGroupList();
+
+                $('#mainTable tbody').on('click', 'tr', function() {
+                    var rowData = table.row(this).data();
+                    var groupID = rowData['id'];
+                    showGroupDetails(groupID);
+                });
+            });
+
+            $("#addGroup").on("click", function(e){
+                showGroupCreateForm();
+            });
+
+            $("#editGroup").on("click", function(e){
+                var groupID = $(this).data("group-id");
+                showGroupEditForm(groupID);
+            });
+
+            $("#deleteGroup").on("click", function(e){
+                var groupID = $(this).data("group-id");
+                showGroupDeleteForm(groupID);
+            });
+
+            $("#cancelGroupDetails").on("click", function(e){
+                $("#groupList").show();
+                table.ajax.reload();
+                $("#groupDetails").addClass("hidden");
+                $("#groupEditForm").addClass("hidden");
+                $("#groupDeleteForm").addClass("hidden");
+                $("#groupCreateForm").addClass("hidden");
+            });
+
+            $("#cancelGroupDelete").on("click", function(e){
+                $("#groupList").show();
+                table.ajax.reload();
+                $("#groupDetails").addClass("hidden");
+                $("#groupEditForm").addClass("hidden");
+                $("#groupDeleteForm").addClass("hidden");
+                $("#groupCreateForm").addClass("hidden");
+                $("#groupList").show();
+                $("#groupDeleteForm").addClass("hidden");
+            });
+
+            $("#cancelGroupForm").on("click", function(e){
+                var groupID = $("#submitGroupForm").data("group-id");
+                if (groupID) {
+                    showGroupDetails(groupID);
+                } else {
+                    $("#groupList").show();
+                    table.ajax.reload();
+                    $("#groupEditForm").addClass("hidden");
+                    $("#groupDeleteForm").addClass("hidden");
+                    $("#groupCreateForm").addClass("hidden");
+                }
+            });
+
+            $("#cancelCreateGroup").on("click", function(e){
+                $("#groupList").show();
+                table.ajax.reload();
+                $("#groupCreateForm").addClass("hidden");
+            });
+
+            $("#submitGroupForm").on("click", function(e) {
+                e.preventDefault();
+
+                $("#editFormError").hide();
+                $(".is-invalid").removeClass("is-invalid");
+                $(".invalid-feedback").hide();
+
+                var formData = {
+                    num: parseInt($("#groupEditNum").val()),
+                    course_id: parseInt($("#groupEditCourse_id").val())
+                };
+
+                var groupID = $(this).data("group-id");
+
+                if (isNaN(formData.num) || formData.num < 0) {
+                    $("#groupEditNum").addClass("is-invalid");
+                    $("#groupEditNumError").text("Номер группы должен быть положительным числом").show();
+                    return;
+                }
+
+                if (isNaN(formData.course_id)) {
+                    $("#groupEditCourse_id").addClass("is-invalid");
+                    $("#groupEditCourse_idError").text("Выберите курс").show();
+                    return;
+                }
+
+                $.ajax({
+                    url: "/api/groups/" + groupID,
+                    type: 'PATCH',
+                    contentType: 'application/json',
+                    data: JSON.stringify(formData),
+                    success: function(response) {
+                        showGroupDetails(response.id);
+                    },
+                    error: function(jqXHR) {
+                        var errorData = jqXHR.responseJSON.detail;
+
+                        if (errorData.error) {
+                            $("#editFormError").text(errorData.error).show();
+                        }
+
+                        if (errorData.field_errors) {
+                            for (var field in errorData.field_errors) {
+                                var fieldName = "groupEdit" + field.charAt(0).toUpperCase() + field.slice(1);
+                                $("#" + fieldName).addClass("is-invalid");
+                                $("#" + fieldName + "Error").text(errorData.field_errors[field]).show();
+                            }
+                        }
+                    }
+                });
+            });
+
+            $("#deleteGroupForm").on("submit", function(e){
+                e.preventDefault();
+
+                var groupID = $("#deleteGroup").data("group-id");
+
+                $.ajax({
+                    url: "/api/groups/" + groupID,
+                    type: 'DELETE',
+                    success: function(response) {
+                        $("#groupList").show();
+                        table.ajax.reload();
+                        $("#groupDeleteForm").addClass("hidden");
+                    },
+                    error: function(jqXHR) {
+                        var errorData = jqXHR.responseJSON;
+                        $("#deleteFormError").text(errorData.detail || "Ошибка при удалении").show();
+                    }
+                });
+            });
+
+            $("#createGroupForm").on("submit", function(e){
+                e.preventDefault();
+
+                var formData = {
+                    num: parseInt($("#createGroupNum").val()),
+                    course_id: parseInt($("#course_id").val())
+                };
+
+                if (isNaN(formData.num) || formData.num < 0) {
+                    $("#createGroupNum").addClass("is-invalid");
+                    $("#createGroupNumError").text("Номер группы должен быть положительным числом").show();
+                    return;
+                }
+
+                if (isNaN(formData.course_id)) {
+                    $("#course_id").addClass("is-invalid");
+                    $("#course_idError").text("Выберите курс").show();
+                    return;
+                }
+
+                $.ajax({
+                    url: "/api/groups/",
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(formData),
+                    success: function(response) {
+                        $("#groupList").show();
+                        table.ajax.reload();
+                        $("#groupCreateForm").addClass("hidden");
+                    },
+                    error: function(jqXHR) {
+                        var errors = jqXHR.responseJSON.detail;
+                        $("#groupCreateForm .alert").remove();
+                        $("#groupCreateForm .is-invalid").removeClass("is-invalid");
+                        $("#groupCreateForm .invalid-feedback").remove();
+
+                        if (errors.error) {
+                            $("#groupCreateForm").prepend(
+                                '<div class="alert alert-danger mb-3">' + errors.error + '</div>'
+                            );
+                        }
+
+                        if (errors.field_errors) {
+                            $.each(errors.field_errors, function(field, message) {
+                                var fieldId = field === "course_id" ? "course_id" :
+                                    "createGroup" + field.charAt(0).toUpperCase() + field.slice(1);
+                                $("#" + fieldId)
+                                    .addClass("is-invalid")
+                                    .after('<div class="invalid-feedback">' + message + '</div>');
+                            });
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+{% endblock %}
+
+{% block header %}
+<h1 id="groupHeader" class="mt-4">Группы</h1>
+{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item active">Группы</li>
+    <li class="breadcrumb-item active hidden" id="groupBreadcrumb"></li>
+</ol>
+{% endblock %}
+
+{% block content %}
+
+<div id="groupList" class="card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div></div>
+            <button id="addGroup" class="btn btn-primary">Добавить</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <table id="mainTable" class="datatable-table stripe">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Номер</th>
+                    <th>Курс</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tfoot>
+                <tr>
+                    <th>ID</th>
+                    <th>Номер</th>
+                    <th>Курс</th>
+                    <th></th>
+                </tr>
+            </tfoot>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="groupDetails" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-body">
+                    <table class="datatable-table stripe">
+                        <tr>
+                            <th width="30%">ID</th>
+                            <td id="groupDetailsID"></td>
+                        </tr>
+                        <tr>
+                            <th>Номер</th>
+                            <td id="groupDetailsNum"></td>
+                        </tr>
+                        <tr>
+                            <th>Курс</th>
+                            <td id="groupDetailsCourse"></td>
+                        </tr>
+                    </table>
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <button id="editGroup" class="btn btn-primary">Редактировать</button>
+                        </div>
+                        <div class="col-md-4">
+                            <button id="deleteGroup" class="btn btn-primary">Удалить</button>
+                        </div>
+                        <div class="col-md-4">
+                            <button id="cancelGroupDetails" class="btn btn-secondary">Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="groupEditForm" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header">
+                    <h3 class="text-center font-weight-light my-4">Редактирование группы</h3>
+                </div>
+                <div class="card-body">
+                    <form id="editGroupForm">
+                        <div id="editFormError" class="alert alert-danger mb-3" style="display: none;"></div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="groupEditNum"
+                                name="num"
+                                type="number"
+                                placeholder="Номер"
+                                min="1"
+                                required
+                            />
+                            <label for="groupEditNum">Номер группы</label>
+                            <div id="groupEditNumError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <select
+                                class="form-control"
+                                id="groupEditCourse_id"
+                                name="course_id"
+                                required
+                            >
+                            </select>
+                            <label for="groupEditCourse_id">Курс</label>
+                            <div id="groupEditCourse_idError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button id="submitGroupForm" class="btn btn-primary" type="submit">Сохранить</button>
+                            <button id="cancelGroupForm" class="btn btn-secondary" type="button">Отменить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="groupDeleteForm" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header">
+                    <h3 class="text-center font-weight-light my-4">Удаление группы</h3>
+                </div>
+                <div class="card-body">
+                    <div id="deleteGroupInfo"></div>
+                    <form id="deleteGroupForm">
+                        <div id="deleteFormError" class="alert alert-danger mb-3" style="display: none;"></div>
+                        <div class="d-flex gap-2 mt-4 justify-content-center">
+                            <button id="submitdelete" class="btn btn-danger" type="submit">Удалить</button>
+                            <button id="cancelGroupDelete" class="btn btn-secondary" type="button">Отменить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="groupCreateForm" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header"><h3 class="text-center font-weight-light my-4">Создание нового курса</h3></div>
+                <div class="card-body">
+                    <form id="createGroupForm">
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="createGroupNum"
+                                name="num"
+                                type="number"
+                                placeholder="Номер"
+                                min="1"
+                                required
+                            />
+                            <label for="createGroupNum">Номер группы</label>
+                            <div id="createGroupNumError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <select
+                                class="form-control"
+                                id="course_id"
+                                name="course_id"
+                                required
+                            >
+                            </select>
+                            <label for="course_id">Курс</label>
+                            <div id="course_idError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button class="btn btn-primary" type="submit">Создать</button>
+                            <button id="cancelCreateGroup" class="btn btn-secondary" type="button">Отменить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

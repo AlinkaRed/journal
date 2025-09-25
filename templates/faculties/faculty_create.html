@@ -18,26 +18,46 @@
             <div class="card shadow-lg border-0 rounded-lg mt-5">
                 <div class="card-header"><h3 class="text-center font-weight-light my-4">Новый факультет</h3></div>
                 <div class="card-body">
-                    <form action="{{ url_for('create_faculty') }}" method="post">
-                        <div class="row mb-3">
-                            <div class="col-md-12">
-                                <div class="form-floating mb-3">
-                                    <input class="form-control" id="name" name="name" type="text" placeholder="Название" required />
-                                    <label for="name">Название</label>
-                                </div>
-                                <div class="form-floating">
-                                    <input class="form-control" id="num" name="num" type="number" placeholder="Номер" required />
-                                    <label for="num">Номер</label>
-                                </div>
-                            </div>
+                    <form action="{{ url_for('faculty_create') }}" method="post">
+                        {% if error %}
+                        <div class="alert alert-danger mb-3">{{ error }}</div>
+                        {% endif %}
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control {% if field_errors and 'name' in field_errors %}is-invalid{% endif %}"
+                                id="name"
+                                name="name"
+                                type="text"
+                                placeholder="Название"
+                                value="{{ form_data.name if form_data else '' }}"
+                                required
+                            />
+                            <label for="name">Название</label>
+                            {% if field_errors and 'name' in field_errors %}
+                                <div class="invalid-feedback">{{ field_errors.name }}</div>
+                            {% endif %}
                         </div>
-                        <div class="row">
-                            <div class="col-md-4">
-                                <button class="btn btn-primary" type="submit">Создать</button>
-                            </div>
-                            <div class="col-md-4 px-0">
-                                <a class="btn btn-secondary" href="{{ url_for('faculties') }}">Отменить</a>
-                            </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control {% if field_errors and 'num' in field_errors %}is-invalid{% endif %}"
+                                id="num"
+                                name="num"
+                                type="number"
+                                placeholder="Номер"
+                                value="{{ form_data.num if form_data else '' }}"
+                                required
+                            />
+                            <label for="num">Номер</label>
+                            {% if field_errors and 'num' in field_errors %}
+                                <div class="invalid-feedback">{{ field_errors.num }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-primary" type="submit">Создать</button>
+                            <a class="btn btn-secondary" href="{{ url_for('faculties') }}">Отменить</a>
                         </div>
                     </form>
                 </div>

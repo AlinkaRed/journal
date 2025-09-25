@@ -1,0 +1,538 @@
+{% extends "base.html" %}
+
+{% block css %}
+    {{ super() }}
+    <style>
+        .hidden {display: none}
+        .courseDetailsButton {width: auto}
+    </style>
+{% endblock %}
+
+{% block js %}
+    {{ super() }}
+    <script>
+        let facultiesList = [];
+
+        function loadFaculties() {
+            return $.get("/api/faculties/")
+                .then(function(response) {
+                    facultiesList = response.data;
+                    return facultiesList;
+                });
+        }
+
+        function getFacultyName(facultyId) {
+            const faculty = facultiesList.find(f => f.id == facultyId);
+            return faculty ? faculty.name : 'ID: ' + facultyId;
+        }
+
+        function drawCourseList(){
+            return $('#mainTable').DataTable({
+                ajax: {
+                    url: '/api/courses/',
+                    dataSrc: 'data',
+                    data: function(d) {
+                        d.expand = ['faculty'];
+                    }
+                },
+                processing: false,
+                serverSide: false,
+                columns: [
+                    { data: 'id', width: 40},
+                    { data: 'num'},
+                    {
+                        data: 'faculty',
+                        render: function(data) {
+                            return data ? data.name : 'Не указан';
+                        }
+                    },
+                    {
+                        width: 100,
+                        render: function ( data, type, row ) {
+                            return '<button type="text" class="courseDetailsButton btn btn-secondary">Детали</button>';
+                        }
+                    },
+                ],
+                language: {
+                    info: 'Страница _PAGE_ из _PAGES_',
+                    infoEmpty: 'Нет данных',
+                    infoFiltered: '(отфильтровано из _MAX_ записей)',
+                    lengthMenu: '_MENU_ записей на странице',
+                    zeroRecords: 'Нет данных',
+                    search: 'Поиск',
+                }
+            });
+        };
+
+        function showCourseDetails(courseID){
+            $.get("/api/courses/" + courseID, function(data) {
+               const facultyName = data.faculty ? data.faculty.name :
+                          (data.faculty_id ? getFacultyName(data.faculty_id) : 'Не указан');
+               $("#courseList").hide();
+               $("#courseEditForm").addClass("hidden");
+               $("#courseCreateForm").addClass("hidden");
+               $("#courseDetails #courseDetailsID").text(data.id);
+               $("#courseDetails #courseDetailsNum").text(data.num);
+               $("#courseDetails #courseDetailsFaculty").text(facultyName);
+               $("#courseDetails #editCourse").attr("data-course-id", courseID);
+               $("#courseDetails #deleteCourse").attr("data-course-id", courseID);
+               $("#courseDetails").removeClass("hidden");
+            });
+        };
+
+        function showCourseEditForm(courseID){
+            $.get("/api/courses/" + courseID, function(data) {
+               $("#courseList").hide();
+               $("#courseDetails").addClass("hidden");
+               $("#courseCreateForm").addClass("hidden");
+               $("#courseEditForm #courseEditNum").val(data.num);
+               $("#courseEditForm #courseEditFaculty_id").val(data.faculty_id);
+               $("#courseEditForm #submitCourseForm").attr("data-course-id", courseID);
+               $("#courseEditForm").removeClass("hidden");
+            });
+        };
+
+        function showCourseDeleteForm(courseID){
+            $.get("/api/courses/" + courseID, function(data) {
+                $("#courseList").hide();
+                $("#courseDetails").addClass("hidden");
+                $("#courseEditForm").addClass("hidden");
+                $("#courseCreateForm").addClass("hidden");
+
+                $("#courseDeleteForm .alert").remove();
+
+                $("#submitdelete").attr("data-course-id", courseID);
+                $("#deleteCourse").attr("data-course-id", courseID);
+
+                $("#courseDeleteForm .card-body").prepend(
+                    '<div class="alert alert-info mb-3">' +
+                    'Вы уверены, что хотите удалить курс? ' +
+                    'Это может привести к удалению всех студентов и групп этого курса.</div>'
+                );
+
+                $("#courseDeleteForm").removeClass("hidden");
+            });
+        };
+
+        function showCourseCreateForm(){
+            $("#courseList").hide();
+            $("#courseDetails").addClass("hidden");
+            $("#courseEditForm").addClass("hidden");
+            $("#courseCreateForm input").val("");
+            $("#courseCreateForm select").val("");
+            $("#courseCreateForm .is-invalid").removeClass("is-invalid");
+            $("#courseCreateForm .invalid-feedback").remove();
+            $("#courseCreateForm .alert").remove();
+            $("#courseCreateForm").removeClass("hidden");
+        };
+
+        function populateFacultySelects() {
+            const facultySelects = [
+                "#faculty_id",
+                "#courseEditFaculty_id"
+            ];
+
+            facultySelects.forEach(selector => {
+                const $select = $(selector);
+                $select.empty();
+                $select.append($('<option></option>').val('').text('Выберите факультет').prop('disabled', true).prop('selected', true));
+
+                facultiesList.forEach(faculty => {
+                    $select.append(
+                        $('<option></option>')
+                            .val(faculty.id)
+                            .text(faculty.name)
+                    );
+                });
+            });
+        }
+
+        $(document).ready(function() {
+            loadFaculties().then(function() {
+                populateFacultySelects();
+                table = drawCourseList();
+
+                $('#mainTable tbody').on('click', 'tr', function() {
+                    var rowData = table.row(this).data();
+                    var courseID = rowData['id'];
+                    showCourseDetails(courseID);
+                });
+            });
+
+            $("#addCourse").on("click", function(e){
+                showCourseCreateForm();
+            });
+
+            $("#editCourse").on("click", function(e){
+                var courseID = $(this).data("course-id");
+                showCourseEditForm(courseID);
+            });
+
+            $("#deleteCourse").on("click", function(e){
+                var courseID = $(this).data("course-id");
+                showCourseDeleteForm(courseID);
+            });
+
+            $("#cancelCourseDetails").on("click", function(e){
+                $("#courseList").show();
+                table.ajax.reload();
+                $("#courseDetails").addClass("hidden");
+                $("#courseEditForm").addClass("hidden");
+                $("#courseDeleteForm").addClass("hidden");
+                $("#courseCreateForm").addClass("hidden");
+            });
+
+            $("#cancelCourseDelete").on("click", function(e){
+                $("#courseList").show();
+                table.ajax.reload();
+                $("#courseDetails").addClass("hidden");
+                $("#courseEditForm").addClass("hidden");
+                $("#courseDeleteForm").addClass("hidden");
+                $("#courseCreateForm").addClass("hidden");
+                $("#courseList").show();
+                $("#courseDeleteForm").addClass("hidden");
+            });
+
+            $("#cancelCourseForm").on("click", function(e){
+                var courseID = $("#submitCourseForm").data("course-id");
+                if (courseID) {
+                    showCourseDetails(courseID);
+                } else {
+                    $("#courseList").show();
+                    table.ajax.reload();
+                    $("#courseEditForm").addClass("hidden");
+                    $("#courseDeleteForm").addClass("hidden");
+                    $("#courseCreateForm").addClass("hidden");
+                }
+            });
+
+            $("#cancelCreateCourse").on("click", function(e){
+                $("#courseList").show();
+                table.ajax.reload();
+                $("#courseCreateForm").addClass("hidden");
+            });
+
+            $("#submitCourseForm").on("click", function(e) {
+                e.preventDefault();
+
+                $("#editFormError").hide();
+                $(".is-invalid").removeClass("is-invalid");
+                $(".invalid-feedback").hide();
+
+                var formData = {
+                    num: parseInt($("#courseEditNum").val()),
+                    faculty_id: parseInt($("#courseEditFaculty_id").val())
+                };
+
+                var courseID = $(this).data("course-id");
+
+                if (isNaN(formData.num) || formData.num < 0) {
+                    $("#courseEditNum").addClass("is-invalid");
+                    $("#courseEditNumError").text("Номер курса должен быть положительным числом").show();
+                    return;
+                }
+
+                if (isNaN(formData.faculty_id)) {
+                    $("#courseEditFaculty_id").addClass("is-invalid");
+                    $("#courseEditFaculty_idError").text("Выберите факультет").show();
+                    return;
+                }
+
+                $.ajax({
+                    url: "/api/courses/" + courseID,
+                    type: 'PATCH',
+                    contentType: 'application/json',
+                    data: JSON.stringify(formData),
+                    success: function(response) {
+                        showCourseDetails(response.id);
+                    },
+                    error: function(jqXHR) {
+                        var errorData = jqXHR.responseJSON.detail;
+
+                        if (errorData.error) {
+                            $("#editFormError").text(errorData.error).show();
+                        }
+
+                        if (errorData.field_errors) {
+                            for (var field in errorData.field_errors) {
+                                var fieldName = "courseEdit" + field.charAt(0).toUpperCase() + field.slice(1);
+                                $("#" + fieldName).addClass("is-invalid");
+                                $("#" + fieldName + "Error").text(errorData.field_errors[field]).show();
+                            }
+                        }
+                    }
+                });
+            });
+
+            $("#deleteCourseForm").on("submit", function(e){
+                e.preventDefault();
+
+                var courseID = $("#deleteCourse").data("course-id");
+
+                $.ajax({
+                    url: "/api/courses/" + courseID,
+                    type: 'DELETE',
+                    success: function(response) {
+                        $("#courseList").show();
+                        table.ajax.reload();
+                        $("#courseDeleteForm").addClass("hidden");
+                    },
+                    error: function(jqXHR) {
+                        var errorData = jqXHR.responseJSON;
+                        $("#deleteFormError").text(errorData.detail || "Ошибка при удалении").show();
+                    }
+                });
+            });
+
+            $("#createCourseForm").on("submit", function(e){
+                e.preventDefault();
+
+                var formData = {
+                    num: parseInt($("#createCourseNum").val()),
+                    faculty_id: parseInt($("#faculty_id").val())
+                };
+
+                if (isNaN(formData.num) || formData.num < 0) {
+                    $("#createCourseNum").addClass("is-invalid");
+                    $("#createCourseNumError").text("Номер курса должен быть положительным числом").show();
+                    return;
+                }
+
+                if (isNaN(formData.faculty_id)) {
+                    $("#faculty_id").addClass("is-invalid");
+                    $("#faculty_idError").text("Выберите факультет").show();
+                    return;
+                }
+
+                $.ajax({
+                    url: "/api/courses/",
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(formData),
+                    success: function(response) {
+                        $("#courseList").show();
+                        table.ajax.reload();
+                        $("#courseCreateForm").addClass("hidden");
+                    },
+                    error: function(jqXHR) {
+                        var errors = jqXHR.responseJSON.detail;
+                        $("#courseCreateForm .alert").remove();
+                        $("#courseCreateForm .is-invalid").removeClass("is-invalid");
+                        $("#courseCreateForm .invalid-feedback").remove();
+
+                        if (errors.error) {
+                            $("#courseCreateForm").prepend(
+                                '<div class="alert alert-danger mb-3">' + errors.error + '</div>'
+                            );
+                        }
+
+                        if (errors.field_errors) {
+                            $.each(errors.field_errors, function(field, message) {
+                                var fieldId = field === "faculty_id" ? "faculty_id" :
+                                    "createCourse" + field.charAt(0).toUpperCase() + field.slice(1);
+                                $("#" + fieldId)
+                                    .addClass("is-invalid")
+                                    .after('<div class="invalid-feedback">' + message + '</div>');
+                            });
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+{% endblock %}
+
+{% block header %}
+<h1 id="courseHeader" class="mt-4">Курсы</h1>
+{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item active">Курсы</li>
+    <li class="breadcrumb-item active hidden" id="courseBreadcrumb"></li>
+</ol>
+{% endblock %}
+
+{% block content %}
+
+<div id="courseList" class="card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div></div>
+            <button id="addCourse" class="btn btn-primary">Добавить</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <table id="mainTable" class="datatable-table stripe">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Номер</th>
+                    <th>Факультет</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tfoot>
+                <tr>
+                    <th>ID</th>
+                    <th>Номер</th>
+                    <th>Факультет</th>
+                    <th></th>
+                </tr>
+            </tfoot>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="courseDetails" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-body">
+                    <table class="datatable-table stripe">
+                        <tr>
+                            <th width="30%">ID</th>
+                            <td id="courseDetailsID"></td>
+                        </tr>
+                        <tr>
+                            <th>Номер</th>
+                            <td id="courseDetailsNum"></td>
+                        </tr>
+                        <tr>
+                            <th>Факультет</th>
+                            <td id="courseDetailsFaculty"></td>
+                        </tr>
+                    </table>
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <button id="editCourse" class="btn btn-primary">Редактировать</button>
+                        </div>
+                        <div class="col-md-4">
+                            <button id="deleteCourse" class="btn btn-primary">Удалить</button>
+                        </div>
+                        <div class="col-md-4">
+                            <button id="cancelCourseDetails" class="btn btn-secondary">Отмена</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="courseEditForm" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header">
+                    <h3 class="text-center font-weight-light my-4">Редактирование курса</h3>
+                </div>
+                <div class="card-body">
+                    <form id="editCourseForm">
+                        <div id="editFormError" class="alert alert-danger mb-3" style="display: none;"></div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="courseEditNum"
+                                name="num"
+                                type="number"
+                                placeholder="Номер"
+                                min="1"
+                                required
+                            />
+                            <label for="courseEditNum">Номер курса</label>
+                            <div id="courseEditNumError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <select
+                                class="form-control"
+                                id="courseEditFaculty_id"
+                                name="faculty_id"
+                                required
+                            >
+                            </select>
+                            <label for="courseEditFaculty_id">Факультет</label>
+                            <div id="courseEditFaculty_idError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button id="submitCourseForm" class="btn btn-primary" type="submit">Сохранить</button>
+                            <button id="cancelCourseForm" class="btn btn-secondary" type="button">Отменить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="courseDeleteForm" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header">
+                    <h3 class="text-center font-weight-light my-4">Удаление курса</h3>
+                </div>
+                <div class="card-body">
+                    <div id="deleteCourseInfo"></div>
+                    <form id="deleteCourseForm">
+                        <div id="deleteFormError" class="alert alert-danger mb-3" style="display: none;"></div>
+                        <div class="d-flex gap-2 mt-4 justify-content-center">
+                            <button id="submitdelete" class="btn btn-danger" type="submit">Удалить</button>
+                            <button id="cancelCourseDelete" class="btn btn-secondary" type="button">Отменить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="courseCreateForm" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header"><h3 class="text-center font-weight-light my-4">Создание нового курса</h3></div>
+                <div class="card-body">
+                    <form id="createCourseForm">
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="createCourseNum"
+                                name="num"
+                                type="number"
+                                placeholder="Номер"
+                                min="1"
+                                required
+                            />
+                            <label for="createCourseNum">Номер курса</label>
+                            <div id="createCourseNumError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <select
+                                class="form-control"
+                                id="faculty_id"
+                                name="faculty_id"
+                                required
+                            >
+                            </select>
+                            <label for="faculty_id">Факультет</label>
+                            <div id="faculty_idError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button class="btn btn-primary" type="submit">Создать</button>
+                            <button id="cancelCreateCourse" class="btn btn-secondary" type="button">Отменить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
