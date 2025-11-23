@@ -1,3 +1,4 @@
+alembic
 fastapi[standard]
 sqlmodel
 psycopg2

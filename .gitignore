@@ -11,3 +11,4 @@ workspace*
 .DS_Store?
 .coverage
 /tmp
+local_settings.py

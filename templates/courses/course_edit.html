@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block header %}
+<h1 class="mt-4">Курс {{ course.num }}</h1>
+{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item active">Курсы</li>
+    <li class="breadcrumb-item active">{{ course.num }}</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-5">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-body">
+                    <form action="{{ url_for('course_update', course_id=course.id) }}" method="post">
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <div class="form-floating mb-3">
+                                    <input class="form-control" id="name" num="name" type="text" placeholder="Номер" value="{{ course.num }}" />
+                                    <label for="name">Номер</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4"><button class="btn btn-primary" type="submit">Сохранить</button></div>
+                            <div class="col-md-4 px-0"><a class="btn btn-secondary" href="{{ url_for('course_details', course_id=course.id) }}">Отменить</a></div>
+<!--                            <div class="col-md-4"><button class="btn btn-secondary" type="button" onclick="history.back()">Отменить</button></div>-->
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

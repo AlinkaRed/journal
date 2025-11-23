@@ -1,0 +1,29 @@
+Generic single-database configuration.
+
+https://alembic.sqlalchemy.org/en/latest/
+
+pip install alembic
+
+alembic init alembic
+
+alembic revision -m "create account table"
+
+alembic revision --autogenerate -m "init"
+
+alembic upgrade head
+alembic upgrade ae1
+alembic upgrade +2
+alembic upgrade -1
+alembic upgrade ae10+2
+
+alembic downgrade base
+
+alembic current
+
+alembic history --verbose
+
+alembic check
+
+file_template
+
+mako - import sqlmodel

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block header %}
+<h1 class="mt-4">Создание курса</h1>
+{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item"><a href="{{ url_for('courses') }}">Курсы</a></li>
+    <li class="breadcrumb-item active">Создание</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-5">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header"><h3 class="text-center font-weight-light my-4">Новый курс</h3></div>
+                <div class="card-body">
+                    <form action="{{ url_for('course_create') }}" method="post">
+                        {% if error %}
+                        <div class="alert alert-danger mb-3">{{ error }}</div>
+                        {% endif %}
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control {% if field_errors and 'num' in field_errors %}is-invalid{% endif %}"
+                                id="num"
+                                name="num"
+                                type="number"
+                                placeholder="Номер"
+                                value="{{ form_data.num if form_data else '' }}"
+                                required
+                            />
+                            <label for="num">Номер</label>
+                            {% if field_errors and 'num' in field_errors %}
+                                <div class="invalid-feedback">{{ field_errors.num }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <select
+                                class="form-control {% if field_errors and 'faculty_id' in field_errors %}is-invalid{% endif %}"
+                                id="faculty_id"
+                                name="faculty_id"
+                                required
+                            >
+                                {% for faculty in faculties %}
+                                <option
+                                    value="{{ faculty.id }}"
+                                    {% if form_data and form_data.faculty_id|int == faculty.id %}selected{% endif %}
+                                >
+                                    {{ faculty.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <label for="faculty_id">Факультет</label>
+                            {% if field_errors and 'faculty_id' in field_errors %}
+                                <div class="invalid-feedback">{{ field_errors.faculty_id }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-primary" type="submit">Создать</button>
+                            <a class="btn btn-secondary" href="{{ url_for('courses') }}">Отменить</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,454 @@
+{% extends "base.html" %}
+
+{% block css %}
+    {{ super() }}
+    <style>
+        .hidden {display: none}
+        .facultyDetailsButton {width: auto}
+    </style>
+{% endblock %}
+
+{% block js %}
+    {{ super() }}
+    <script>
+        function drawFacultyList(){
+            return $('#mainTable').DataTable({
+                ajax: '/api/faculties/',
+                dataSrc: '',
+                processing: false,
+                serverSide: false,
+                columns: [
+                    { data: 'id', width: 40},
+                    { data: 'name'},
+                    { data: 'num'},
+                    { width: 100,
+                      render: function ( data, type, row ) {
+                        return '<button type="text" class="facultyDetailsButton btn btn-secondary">Детали</button>';
+                      }
+                    },
+                ],
+                language: {
+                    info: 'Страница _PAGE_ из _PAGES_',
+                    infoEmpty: 'Нет данных',
+                    infoFiltered: '(отфильтровано из _MAX_ записей)',
+                    lengthMenu: '_MENU_ записей на странице',
+                    zeroRecords: 'Нет данных',
+                    search: 'Поиск',
+                }
+            });
+        };
+
+        function showFacultyDetails(facultyID){
+            $.get("/api/faculties/" + facultyID, function(data) {
+               $("#facultyList").hide();
+               $("#facultyEditForm").addClass("hidden");
+               $("#facultyCreateForm").addClass("hidden");
+               $("#facultyDetails #facultyDetailsID").text(data.id);
+               $("#facultyDetails #facultyDetailsName").text(data.name);
+               $("#facultyDetails #facultyDetailsNum").text(data.num);
+               $("#facultyDetails #editFaculty").attr("data-faculty-id", facultyID);
+               $("#facultyDetails #deleteFaculty").attr("data-faculty-id", facultyID);
+               $("#facultyDetails").removeClass("hidden");
+            });
+        };
+
+        function showFacultyEditForm(facultyID){
+            $.get("/api/faculties/" + facultyID, function(data) {
+               $("#facultyList").hide();
+               $("#facultyDetails").addClass("hidden");
+               $("#facultyCreateForm").addClass("hidden");
+               $("#facultyEditForm #facultyEditName").val(data.name);
+               $("#facultyEditForm #facultyEditNum").val(data.num);
+               $("#facultyEditForm #submitFacultyForm").attr("data-faculty-id", facultyID);
+               $("#facultyEditForm").removeClass("hidden");
+            });
+        };
+
+        function showFacultyDeleteForm(facultyID){
+            $.get("/api/faculties/" + facultyID, function(data) {
+                $("#facultyList").hide();
+                $("#facultyDetails").addClass("hidden");
+                $("#facultyEditForm").addClass("hidden");
+                $("#facultyCreateForm").addClass("hidden");
+
+                $("#facultyDeleteForm .alert").remove();
+
+                $("#submitdelete").attr("data-faculty-id", facultyID);
+                $("#deleteFaculty").attr("data-faculty-id", facultyID);
+
+                $("#facultyDeleteForm .card-body").prepend(
+                    '<div class="alert alert-info mb-3">' +
+                    'Вы уверены, что хотите удалить факультет? ' +
+                    'Это может привести к удалению всех студентов, групп и курсов этого факультета.</div>'
+                );
+
+                $("#facultyDeleteForm").removeClass("hidden");
+            });
+        };
+
+        function showFacultyCreateForm(){
+            $("#facultyList").hide();
+            $("#facultyDetails").addClass("hidden");
+            $("#facultyEditForm").addClass("hidden");
+            $("#facultyCreateForm input").val("");
+            $("#facultyCreateForm .is-invalid").removeClass("is-invalid");
+            $("#facultyCreateForm .invalid-feedback").remove();
+            $("#facultyCreateForm .alert").remove();
+            $("#facultyCreateForm").removeClass("hidden");
+        };
+
+        $(document).ready(function() {
+            table = drawFacultyList();
+            $('#mainTable tbody').on('click', 'tr', function() {
+                var rowData = table.row(this).data();
+                var facultyID = rowData['id'];
+                showFacultyDetails(facultyID);
+            });
+
+            $("#addFaculty").on("click", function(e){
+                showFacultyCreateForm();
+            });
+
+            $("#editFaculty").on("click", function(e){
+                var facultyID = $(this).data("faculty-id");
+                showFacultyEditForm(facultyID);
+            });
+
+            $("#deleteFaculty").on("click", function(e){
+                var facultyID = $(this).data("faculty-id");
+                showFacultyDeleteForm(facultyID);
+            });
+
+            $("#cancelFacultyDetails").on("click", function(e){
+                $("#facultyList").show();
+                table.ajax.reload();
+                $("#facultyDetails").addClass("hidden");
+                $("#facultyEditForm").addClass("hidden");
+                $("#facultyDeleteForm").addClass("hidden");
+                $("#facultyCreateForm").addClass("hidden");
+            });
+
+            $("#cancelFacultyDelete").on("click", function(e){
+                $("#facultyList").show();
+                table.ajax.reload();
+                $("#facultyDetails").addClass("hidden");
+                $("#facultyEditForm").addClass("hidden");
+                $("#facultyDeleteForm").addClass("hidden");
+                $("#facultyCreateForm").addClass("hidden");
+                $("#facultyList").show();
+                $("#facultyDeleteForm").addClass("hidden");
+            });
+
+            $("#cancelFacultyForm").on("click", function(e){
+                var facultyID = $("#submitFacultyForm").data("faculty-id");
+                if (facultyID) {
+                    showFacultyDetails(facultyID);
+                } else {
+                    $("#facultyList").show();
+                    table.ajax.reload();
+                    $("#facultyEditForm").addClass("hidden");
+                    $("#facultyDeleteForm").addClass("hidden");
+                    $("#facultyCreateForm").addClass("hidden");
+                }
+            });
+
+            $("#cancelCreateFaculty").on("click", function(e){
+                $("#facultyList").show();
+                table.ajax.reload();
+                $("#facultyCreateForm").addClass("hidden");
+            });
+
+            $("#submitFacultyForm").on("click", function(e) {
+                e.preventDefault();
+
+                $("#editFormError").hide();
+                $(".is-invalid").removeClass("is-invalid");
+                $(".invalid-feedback").hide();
+
+                var formData = {
+                    name: $("#facultyEditName").val(),
+                    num: parseInt($("#facultyEditNum").val()),
+                };
+
+                var facultyID = $(this).data("faculty-id");
+
+                if (formData.num < 0) {
+                    $("#facultyEditNum").addClass("is-invalid");
+                    $("#facultyEditNumError").text("Номер факультета не может быть отрицательным").show();
+                    return;
+                }
+
+                $.ajax({
+                    url: "/api/faculties/" + facultyID,
+                    type: 'PATCH',
+                    contentType: 'application/json',
+                    data: JSON.stringify(formData),
+                    success: function(response) {
+                        showFacultyDetails(response.id);
+                    },
+                    error: function(jqXHR) {
+                        var errorData = jqXHR.responseJSON.detail;
+
+                        if (errorData.error) {
+                            $("#editFormError").text(errorData.error).show();
+                        }
+
+                        if (errorData.field_errors) {
+                            for (var field in errorData.field_errors) {
+                                var fieldName = "facultyEdit" + field.charAt(0).toUpperCase() + field.slice(1);
+                                $("#" + fieldName).addClass("is-invalid");
+                                $("#" + fieldName + "Error").text(errorData.field_errors[field]).show();
+                            }
+                        }
+                    }
+                });
+            });
+
+            $("#deleteFacultyForm").on("submit", function(e){
+                e.preventDefault();
+
+                var facultyID = $("#deleteFaculty").data("faculty-id");
+
+                $.ajax({
+                    url: "/api/faculties/" + facultyID,
+                    type: 'DELETE',
+                    success: function(response) {
+                        $("#facultyList").show();
+                        table.ajax.reload();
+                        $("#facultyDeleteForm").addClass("hidden");
+                    },
+                    error: function(jqXHR) {
+                        var errorData = jqXHR.responseJSON;
+                        $("#deleteFormError").text(errorData.detail || "Ошибка при удалении").show();
+                    }
+                });
+            });
+
+            $("#createFacultyForm").on("submit", function(e){
+                e.preventDefault();
+
+                var formData = {
+                    name: $("#createFacultyName").val(),
+                    num: $("#createFacultyNum").val()
+                };
+
+                $.ajax({
+                    url: "/api/faculties/",
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(formData),
+                    success: function(response) {
+                        $("#facultyList").show();
+                        table.ajax.reload();
+                        $("#facultyCreateForm").addClass("hidden");
+                    },
+                    error: function(jqXHR) {
+                        var errors = jqXHR.responseJSON.detail;
+                        $("#facultyCreateForm .alert").remove();
+                        $("#facultyCreateForm .is-invalid").removeClass("is-invalid");
+                        $("#facultyCreateForm .invalid-feedback").remove();
+
+                        if (errors.error) {
+                            $("#facultyCreateForm").prepend(
+                                '<div class="alert alert-danger mb-3">' + errors.error + '</div>'
+                            );
+                        }
+
+                        if (errors.field_errors) {
+                            $.each(errors.field_errors, function(field, message) {
+                                $("#createFaculty" + field.charAt(0).toUpperCase() + field.slice(1))
+                                    .addClass("is-invalid")
+                                    .after('<div class="invalid-feedback">' + message + '</div>');
+                            });
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+{% endblock %}
+
+{% block header %}
+<h1 id="facultyHeader" class="mt-4">Факультеты</h1>
+{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item active">Факультеты</li>
+    <li class="breadcrumb-item active hidden" id="facultyBreadcrumb"></li>
+</ol>
+{% endblock %}
+
+{% block content %}
+
+<div id="facultyList" class="card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div></div>
+            <button id="addFaculty" class="btn btn-primary">Добавить</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <table id="mainTable" class="datatable-table stripe">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Имя</th>
+                    <th>Номер</th>
+                </tr>
+            </thead>
+            <tfoot>
+                <tr>
+                    <th>ID</th>
+                    <th>Имя</th>
+                    <th>Номер</th>
+                </tr>
+            </tfoot>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="facultyDetails" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-body">
+                    <table class="datatable-table stripe">
+                        <tr>
+                            <th>ID</th>
+                            <td id="facultyDetailsID"></td>
+                        </tr>
+                        <tr>
+                            <th>Название</th>
+                            <td id="facultyDetailsName"></td>
+                        </tr>
+                        <tr>
+                            <th>Номер</th>
+                            <td id="facultyDetailsNum"></td>
+                        </tr>
+                    </table>
+                    <div class="row">
+                        <div class="col-md-4"><button id="editFaculty" class="btn btn-primary">Редактировать</button></div>
+                        <div class="col-md-4"><button id="deleteFaculty" class="btn btn-primary">Удалить</button></div>
+                        <div class="col-md-4"><button id="cancelFacultyDetails" class="btn btn-secondary">Отменить</button></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="facultyEditForm" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header">
+                    <h3 class="text-center font-weight-light my-4">Редактирование факультета</h3>
+                </div>
+                <div class="card-body">
+                    <form id="editFacultyForm">
+                        <div id="editFormError" class="alert alert-danger mb-3" style="display: none;"></div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="facultyEditName"
+                                name="name"
+                                type="text"
+                                placeholder="Название"
+                                required
+                            />
+                            <label for="facultyEditName">Название</label>
+                            <div id="facultyEditNameError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="facultyEditNum"
+                                name="num"
+                                type="number"
+                                placeholder="Номер"
+                                required
+                            />
+                            <label for="facultyEditNum">Номер</label>
+                            <div id="facultyEditNumError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button id="submitFacultyForm" class="btn btn-primary" type="submit">Сохранить</button>
+                            <button id="cancelFacultyForm" class="btn btn-secondary" type="button">Отменить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="facultyDeleteForm" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header">
+                    <h3 class="text-center font-weight-light my-4">Удаление факультета</h3>
+                </div>
+                <div class="card-body">
+                    <div id="deleteFacultyInfo"></div>
+                    <form id="deleteFacultyForm">
+                        <div id="deleteFormError" class="alert alert-danger mb-3" style="display: none;"></div>
+                        <div class="d-flex gap-2 mt-4 justify-content-center">
+                            <button id="submitdelete" class="btn btn-danger" type="submit">Удалить</button>
+                            <button id="cancelFacultyDelete" class="btn btn-secondary" type="button">Отменить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="facultyCreateForm" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header"><h3 class="text-center font-weight-light my-4">Новый факультет</h3></div>
+                <div class="card-body">
+                    <form id="createFacultyForm">
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="createFacultyName"
+                                name="name"
+                                type="text"
+                                placeholder="Название"
+                                required
+                            />
+                            <label for="createFacultyName">Название</label>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="createFacultyNum"
+                                name="num"
+                                type="number"
+                                placeholder="Номер"
+                                required
+                            />
+                            <label for="createFacultyNum">Номер</label>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-primary" type="submit">Создать</button>
+                            <button id="cancelCreateFaculty" class="btn btn-secondary" type="button">Отменить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

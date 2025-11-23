@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block header %}
+<h1 class="mt-4">Студент {{ student.first_name + ' ' + student.middle_name + ' ' + student.last_name }}</h1>
+{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item active">Студенты</li>
+    <li class="breadcrumb-item active">{{ student.first_name + ' ' + student.middle_name + ' ' + student.last_name }}</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-5">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-body">
+                    <form action="{{ url_for('student_update', student_id=student.id) }}" method="post">
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <div class="form-floating mb-3">
+                                    <input class="form-control" id="name" name="name" type="text" placeholder="Имя" value="{{ student.first_name }}" />
+                                    <label for="name">Имя</label>
+                                </div>
+                                <div class="form-floating mb-3">
+                                    <input class="form-control" id="num" name="num" type="text" placeholder="Отчество" value="{{ student.middle_name }}" />
+                                    <label for="num">Отчество</label>
+                                </div>
+                                <div class="form-floating mb-3">
+                                    <input class="form-control" id="n" name="n" type="text" placeholder="Фамилия" value="{{ student.last_name }}" />
+                                    <label for="n">Фамилия</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4"><button class="btn btn-primary" type="submit">Сохранить</button></div>
+                            <div class="col-md-4 px-0"><a class="btn btn-secondary" href="{{ url_for('student_details', student_id=student.id) }}">Отменить</a></div>
+<!--                            <div class="col-md-4"><button class="btn btn-secondary" type="button" onclick="history.back()">Отменить</button></div>-->
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

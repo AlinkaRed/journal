@@ -1,0 +1,657 @@
+{% extends "base.html" %}
+
+{% block css %}
+    {{ super() }}
+    <style>
+        .hidden {display: none}
+        .teacherDetailsButton {width: auto}
+    </style>
+{% endblock %}
+
+{% block js %}
+    {{ super() }}
+    <script>
+        function formatDateForInput(dateString) {
+            if (!dateString) return '';
+
+            // Преобразуем дату из формата YYYY-MM-DD в DD.MM.YYYY
+            const parts = dateString.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}.${parts[1]}.${parts[0]}`;
+            }
+            return dateString;
+        }
+
+        function parseDateFromInput(dateString) {
+            if (!dateString) return '';
+
+            // Преобразуем дату из формата DD.MM.YYYY в YYYY-MM-DD
+            const parts = dateString.split('.');
+            if (parts.length === 3) {
+                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            return dateString;
+        }
+
+        function drawTeacherList(){
+            return $('#mainTable').DataTable({
+                ajax: '/api/teachers/',
+                dataSrc: '',
+                processing: false,
+                serverSide: false,
+                columns: [
+                    { data: 'id', width: 40},
+                    { data: 'last_name' },
+                    { data: 'first_name' },
+                    { data: 'middle_name' },
+                    { width: 100,
+                      render: function ( data, type, row ) {
+                        return '<button type="text" class="teacherDetailsButton btn btn-secondary">Детали</button>';
+                      }
+                    },
+                ],
+                language: {
+                    info: 'Страница _PAGE_ из _PAGES_',
+                    infoEmpty: 'Нет данных',
+                    infoFiltered: '(отфильтровано из _MAX_ записей)',
+                    lengthMenu: '_MENU_ записей на странице',
+                    zeroRecords: 'Нет данных',
+                    search: 'Поиск',
+                }
+            });
+        };
+
+        function showTeacherDetails(teacherID){
+            $.get("/api/teachers/" + teacherID, function(data) {
+               $("#teacherList").hide();
+               $("#teacherEditForm").addClass("hidden");
+               $("#teacherCreateForm").addClass("hidden");
+               $("#teacherDetails #teacherDetailsID").text(data.id);
+               $("#teacherDetails #teacherDetailsFirstName").text(data.first_name);
+               $("#teacherDetails #teacherDetailsMiddleName").text(data.middle_name);
+               $("#teacherDetails #teacherDetailsLastName").text(data.last_name);
+
+               const displayDate = data.date_of_birth ? formatDateForInput(data.date_of_birth) : '';
+               $("#teacherDetails #teacherDetailsDate").text(displayDate);
+
+               $("#teacherDetails #teacherDetailsInn").text(data.inn);
+               $("#teacherDetails #editTeacher").attr("data-teacher-id", teacherID);
+               $("#teacherDetails #deleteTeacher").attr("data-teacher-id", teacherID);
+               $("#teacherDetails").removeClass("hidden");
+            });
+        };
+
+        function showTeacherEditForm(teacherID){
+            $.get("/api/teachers/" + teacherID, function(data) {
+               $("#teacherList").hide();
+               $("#teacherDetails").addClass("hidden");
+               $("#teacherCreateForm").addClass("hidden");
+               $("#teacherEditForm #teacherEditFirstName").val(data.first_name);
+               $("#teacherEditForm #teacherEditMiddleName").val(data.middle_name);
+               $("#teacherEditForm #teacherEditLastName").val(data.last_name);
+
+               const formattedDate = data.date_of_birth ? formatDateForInput(data.date_of_birth) : '';
+               $("#teacherEditForm #teacherEditDate").val(formattedDate);
+
+               $("#teacherEditForm #teacherEditInn").val(data.inn);
+               $("#teacherEditForm #submitTeacherForm").attr("data-teacher-id", teacherID);
+               $("#teacherEditForm").removeClass("hidden");
+            });
+        };
+
+        function showTeacherDeleteForm(teacherID){
+            $.get("/api/teachers/" + teacherID, function(data) {
+                $("#teacherList").hide();
+                $("#teacherDetails").addClass("hidden");
+                $("#teacherEditForm").addClass("hidden");
+                $("#teacherCreateForm").addClass("hidden");
+
+                $("#teacherDeleteForm .alert").remove();
+
+                $("#submitdelete").attr("data-teacher-id", teacherID);
+                $("#deleteTeacher").attr("data-teacher-id", teacherID);
+
+                $("#teacherDeleteForm .card-body").prepend(
+                    '<div class="alert alert-info mb-3">' +
+                    'Вы уверены, что хотите удалить преподавателя' +
+                    '?</div>'
+                );
+
+                $("#teacherDeleteForm").removeClass("hidden");
+            });
+        };
+
+        function showTeacherCreateForm(){
+            $("#teacherList").hide();
+            $("#teacherDetails").addClass("hidden");
+            $("#teacherEditForm").addClass("hidden");
+            $("#teacherCreateForm input").val("");
+            $("#teacherCreateForm .is-invalid").removeClass("is-invalid");
+            $("#teacherCreateForm .invalid-feedback").remove();
+            $("#teacherCreateForm .alert").remove();
+            $("#teacherCreateForm").removeClass("hidden");
+        };
+
+        $(document).ready(function() {
+            table = drawTeacherList();
+            $('#mainTable tbody').on('click', 'tr', function() {
+                var rowData = table.row(this).data();
+                var teacherID = rowData['id'];
+                showTeacherDetails(teacherID);
+            });
+
+            $("#addTeacher").on("click", function(e){
+                showTeacherCreateForm();
+            });
+
+            $("#editTeacher").on("click", function(e){
+                var teacherID = $(this).data("teacher-id");
+                showTeacherEditForm(teacherID);
+            });
+
+            $("#deleteTeacher").on("click", function(e){
+                var teacherID = $(this).data("teacher-id");
+                showTeacherDeleteForm(teacherID);
+            });
+
+            $("#cancelTeacherDetails").on("click", function(e){
+                $("#teacherList").show();
+                table.ajax.reload();
+                $("#teacherDetails").addClass("hidden");
+                $("#teacherEditForm").addClass("hidden");
+                $("#teacherDeleteForm").addClass("hidden");
+                $("#teacherCreateForm").addClass("hidden");
+            });
+
+            $("#cancelTeacherDelete").on("click", function(e){
+                $("#teacherList").show();
+                table.ajax.reload();
+                $("#teacherDetails").addClass("hidden");
+                $("#teacherEditForm").addClass("hidden");
+                $("#teacherDeleteForm").addClass("hidden");
+                $("#teacherCreateForm").addClass("hidden");
+                $("#teacherList").show();
+                $("#teacherDeleteForm").addClass("hidden");
+            });
+
+            $("#cancelTeacherForm").on("click", function(e){
+                var teacherID = $("#submitTeacherForm").data("teacher-id");
+                if (teacherID) {
+                    showTeacherDetails(teacherID);
+                } else {
+                    $("#teacherList").show();
+                    table.ajax.reload();
+                    $("#teacherEditForm").addClass("hidden");
+                    $("#teacherCreateForm").addClass("hidden");
+                }
+            });
+
+            $("#cancelCreateTeacher").on("click", function(e){
+                $("#teacherList").show();
+                table.ajax.reload();
+                $("#teacherCreateForm").addClass("hidden");
+            });
+
+            $("#submitTeacherForm").on("click", function(e) {
+                e.preventDefault();
+
+                $("#editFormError").hide();
+                $(".is-invalid").removeClass("is-invalid");
+                $(".invalid-feedback").hide();
+
+                const dateOfBirth = parseDateFromInput($("#teacherEditDate").val());
+
+                var formData = {
+                    first_name: $("#teacherEditFirstName").val(),
+                    middle_name: $("#teacherEditMiddleName").val(),
+                    last_name: $("#teacherEditLastName").val(),
+                    date_of_birth: dateOfBirth,
+                    inn: parseInt($("#teacherEditInn").val()),
+                };
+
+                var teacherID = $(this).data("teacher-id");
+
+                if (!formData.first_name) {
+                    $("#teacherEditFirstName").addClass("is-invalid");
+                    $("#teacherEditFirstNameError").text("Введите имя").show();
+                    return;
+                }
+
+                if (!formData.last_name) {
+                    $("#teacherEditLastName").addClass("is-invalid");
+                    $("#teacherEditLastNameError").text("Введите фамилию").show();
+                    return;
+                }
+
+                if (!formData.date_of_birth) {
+                    $("#teacherEditDate").addClass("is-invalid");
+                    $("#teacherEditDateError").text("Введите дату рождения").show();
+                    return;
+                }
+
+                const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+                if (!dateRegex.test(formData.date_of_birth)) {
+                    $("#teacherEditDate").addClass("is-invalid");
+                    $("#teacherEditDateError").text("Неверный формат даты. Используйте ДД.ММ.ГГГГ").show();
+                    return;
+                }
+
+                if (isNaN(formData.inn) || formData.inn <= 0) {
+                    $("#teacherEditInn").addClass("is-invalid");
+                    $("#teacherEditInnError").text("ИНН должен быть положительным числом").show();
+                    return;
+                }
+
+                $.ajax({
+                    url: "/api/teachers/" + teacherID,
+                    type: 'PATCH',
+                    contentType: 'application/json',
+                    data: JSON.stringify(formData),
+                    success: function(response) {
+                        showTeacherDetails(response.id);
+                    },
+                    error: function(jqXHR) {
+                        var errorData = jqXHR.responseJSON.detail;
+
+                        if (errorData.error) {
+                            $("#editFormError").text(errorData.error).show();
+                        }
+
+                        if (errorData.field_errors) {
+                            for (var field in errorData.field_errors) {
+                                var fieldName = "teacherEdit" + field.charAt(0).toUpperCase() + field.slice(1);
+                                $("#" + fieldName).addClass("is-invalid");
+                                $("#" + fieldName + "Error").text(errorData.field_errors[field]).show();
+                            }
+                        }
+                    }
+                });
+            });
+
+            $("#deleteTeacherForm").on("submit", function(e){
+                e.preventDefault();
+
+                var teacherID = $("#deleteTeacher").data("teacher-id");
+
+                $.ajax({
+                    url: "/api/teachers/" + teacherID,
+                    type: 'DELETE',
+                    success: function(response) {
+                        $("#teacherList").show();
+                        table.ajax.reload();
+                        $("#teacherDeleteForm").addClass("hidden");
+                    },
+                    error: function(jqXHR) {
+                        var errorData = jqXHR.responseJSON;
+                        $("#deleteFormError").text(errorData.detail || "Ошибка при удалении").show();
+                    }
+                });
+            });
+
+            $("#createTeacherForm").on("submit", function(e){
+                e.preventDefault();
+
+                const dateOfBirth = parseDateFromInput($("#createTeacherDate").val());
+
+                var formData = {
+                    first_name: $("#createTeacherFirstName").val(),
+                    middle_name: $("#createTeacherMiddleName").val(),
+                    last_name: $("#createTeacherLastName").val(),
+                    date_of_birth: dateOfBirth,
+                    inn: $("#createTeacherInn").val()
+                };
+
+                // Валидация
+                if (!formData.first_name) {
+                    $("#createTeacherFirstName").addClass("is-invalid");
+                    $("#createTeacherFirstNameError").text("Введите имя").show();
+                    return;
+                }
+
+                if (!formData.last_name) {
+                    $("#createTeacherLastName").addClass("is-invalid");
+                    $("#createTeacherLastNameError").text("Введите фамилию").show();
+                    return;
+                }
+
+                if (!formData.date_of_birth) {
+                    $("#createTeacherDate").addClass("is-invalid");
+                    $("#createTeacherDateError").text("Введите дату рождения").show();
+                    return;
+                }
+
+                // Валидация формата даты
+                const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+                if (!dateRegex.test(formData.date_of_birth)) {
+                    $("#createTeacherDate").addClass("is-invalid");
+                    $("#createTeacherDateError").text("Неверный формат даты. Используйте ДД.ММ.ГГГГ").show();
+                    return;
+                }
+
+                if (isNaN(formData.inn) || formData.inn <= 0) {
+                    $("#createTeacherInn").addClass("is-invalid");
+                    $("#createTeacherInnError").text("ИНН должен быть положительным числом").show();
+                    return;
+                }
+
+                $.ajax({
+                    url: "/api/teachers/",
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(formData),
+                    success: function(response) {
+                        $("#teacherList").show();
+                        table.ajax.reload();
+                        $("#teacherCreateForm").addClass("hidden");
+                    },
+                    error: function(jqXHR) {
+                        var errors = jqXHR.responseJSON.detail;
+                        $("#teacherCreateForm .alert").remove();
+                        $("#teacherCreateForm .is-invalid").removeClass("is-invalid");
+                        $("#teacherCreateForm .invalid-feedback").remove();
+
+                        if (errors.error) {
+                            $("#teacherCreateForm").prepend(
+                                '<div class="alert alert-danger mb-3">' + errors.error + '</div>'
+                            );
+                        }
+
+                        if (errors.field_errors) {
+                            $.each(errors.field_errors, function(field, message) {
+                                $("#createTeacher" + field.charAt(0).toUpperCase() + field.slice(1))
+                                    .addClass("is-invalid")
+                                    .after('<div class="invalid-feedback">' + message + '</div>');
+                            });
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+{% endblock %}
+
+{% block header %}
+<h1 id="teacherHeader" class="mt-4">Преподаватели</h1>
+{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb mb-4">
+    <li class="breadcrumb-item active">Преподаватели</li>
+    <li class="breadcrumb-item active hidden" id="teacherBreadcrumb"></li>
+</ol>
+{% endblock %}
+
+{% block content %}
+
+<div id="teacherList" class="card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div></div>
+            <button id="addTeacher" class="btn btn-primary">Добавить</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <table id="mainTable" class="datatable-table stripe">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Фамилия</th>
+                    <th>Имя</th>
+                    <th>Отчество</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tfoot>
+                <tr>
+                    <th>ID</th>
+                    <th>Фамилия</th>
+                    <th>Имя</th>
+                    <th>Отчество</th>
+                    <th></th>
+                </tr>
+            </tfoot>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="teacherDetails" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-body">
+                    <table class="datatable-table stripe">
+                        <tr>
+                            <th width="30%">ID</th>
+                            <td id="teacherDetailsID"></td>
+                        </tr>
+                        <tr>
+                            <th>Фамилия</th>
+                            <td id="teacherDetailsLastName"></td>
+                        </tr>
+                        <tr>
+                            <th>Имя</th>
+                            <td id="teacherDetailsFirstName"></td>
+                        </tr>
+                        <tr>
+                            <th>Отчество</th>
+                            <td id="teacherDetailsMiddleName"></td>
+                        </tr>
+                        <tr>
+                            <th>Дата рождения</th>
+                            <td id="teacherDetailsDate"></td>
+                        </tr>
+                        <tr>
+                            <th>ИНН</th>
+                            <td id="teacherDetailsInn"></td>
+                        </tr>
+                    </table>
+                    <div class="row mt-3">
+                        <div class="col-md-4"><button id="editTeacher" class="btn btn-primary">Редактировать</button></div>
+                        <div class="col-md-4">
+                            <button id="deleteTeacher" class="btn btn-primary">Удалить</button>
+                        </div>
+                        <div class="col-md-4"><button id="cancelTeacherDetails" class="btn btn-secondary">Отменить</button></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="teacherEditForm" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header">
+                    <h3 class="text-center font-weight-light my-4">Редактирование преподавателя</h3>
+                </div>
+                <div class="card-body">
+                    <form id="editTeacherForm">
+                        <div id="editFormError" class="alert alert-danger mb-3" style="display: none;"></div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="teacherEditLastName"
+                                name="last_name"
+                                type="text"
+                                placeholder="Фамилия"
+                                required
+                            />
+                            <label for="teacherEditLastName">Фамилия</label>
+                            <div id="teacherEditLastNameError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="teacherEditFirstName"
+                                name="first_name"
+                                type="text"
+                                placeholder="Имя"
+                                required
+                            />
+                            <label for="teacherEditFirstName">Имя</label>
+                            <div id="teacherEditFirstNameError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="teacherEditMiddleName"
+                                name="middle_name"
+                                type="text"
+                                placeholder="Отчество"
+                            />
+                            <label for="teacherEditMiddleName">Отчество</label>
+                            <div id="teacherEditMiddleNameError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="teacherEditDate"
+                                name="date_of_birth"
+                                type="text"
+                                placeholder="Дата рождения (ДД.ММ.ГГГГ)"
+                                pattern="\d{2}\.\d{2}\.\d{4}"
+                                required
+                            />
+                            <label for="teacherEditDate">Дата рождения (ДД.ММ.ГГГГ)</label>
+                            <div id="teacherEditDateError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="teacherEditInn"
+                                name="inn"
+                                type="number"
+                                placeholder="ИНН"
+                                min="1"
+                                required
+                            />
+                            <label for="teacherEditInn">ИНН</label>
+                            <div id="teacherEditInnError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button id="submitTeacherForm" class="btn btn-primary" type="submit">Сохранить</button>
+                            <button id="cancelTeacherForm" class="btn btn-secondary" type="button">Отменить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="teacherDeleteForm" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header">
+                    <h3 class="text-center font-weight-light my-4">Удаление преподавателя</h3>
+                </div>
+                <div class="card-body">
+                    <div id="deleteTeacherInfo"></div>
+                    <form id="deleteTeacherForm">
+                        <div id="deleteFormError" class="alert alert-danger mb-3" style="display: none;"></div>
+                        <div class="d-flex gap-2 mt-4 justify-content-center">
+                            <button id="submitdelete" class="btn btn-danger" type="submit">Удалить</button>
+                            <button id="cancelTeacherDelete" class="btn btn-secondary" type="button">Отменить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="teacherCreateForm" class="container hidden">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0 rounded-lg mt-5">
+                <div class="card-header"><h3 class="text-center font-weight-light my-4">Новый преподаватель</h3></div>
+                <div class="card-body">
+                    <form id="createTeacherForm">
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="createTeacherLastName"
+                                name="last_name"
+                                type="text"
+                                placeholder="Фамилия"
+                                required
+                            />
+                            <label for="createTeacherLastName">Фамилия</label>
+                            <div id="createTeacherLastNameError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="createTeacherFirstName"
+                                name="first_name"
+                                type="text"
+                                placeholder="Имя"
+                                required
+                            />
+                            <label for="createTeacherFirstName">Имя</label>
+                            <div id="createTeacherFirstNameError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="createTeacherMiddleName"
+                                name="middle_name"
+                                type="text"
+                                placeholder="Отчество"
+                            />
+                            <label for="createTeacherMiddleName">Отчество</label>
+                            <div id="createTeacherMiddleNameError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="createTeacherDate"
+                                name="date_of_birth"
+                                type="text"
+                                placeholder="Дата рождения (ДД.ММ.ГГГГ)"
+                                pattern="\d{2}\.\d{2}\.\d{4}"
+                                required
+                            />
+                            <label for="createTeacherDate">Дата рождения (ДД.ММ.ГГГГ)</label>
+                            <div id="createTeacherDateError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-floating mb-3">
+                            <input
+                                class="form-control"
+                                id="createTeacherInn"
+                                name="inn"
+                                type="number"
+                                placeholder="ИНН"
+                                min="1"
+                                required
+                            />
+                            <label for="createTeacherInn">ИНН</label>
+                            <div id="createTeacherInnError" class="invalid-feedback" style="display: none;"></div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button class="btn btn-primary" type="submit">Создать</button>
+                            <button id="cancelCreateTeacher" class="btn btn-secondary" type="button">Отменить</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

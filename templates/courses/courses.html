@@ -10,7 +10,12 @@
 <!--                processing: true,-->
 <!--                serverSide: true,-->
                 columns: [
-                    { data: 'id', width: 100 },
+                    { data: 'id',
+                    width: 100,
+                    render: function ( data, type, row) {
+                        return '<a href="/courses/' + data + '/details/">' + data + '</a>';
+                      }
+                    },
                     { data: 'num' },
                     { data: 'faculty.name', className: 'dt-body-right' },
                 ],
@@ -40,10 +45,14 @@
 {% block content %}
 
 <div class="card mb-4">
-<!--    <div class="card-header">-->
-<!--        <i class="fas fa-table me-1"></i>-->
-<!--        DataTable Example-->
-<!--    </div>-->
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div></div>
+            <a href="/courses/create/" class="btn btn-primary">
+                Добавить
+            </a>
+        </div>
+    </div>
     <div class="card-body">
         <table id="mainTable" class="datatable-table stripe">
             <thead>
